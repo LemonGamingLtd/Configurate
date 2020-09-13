@@ -18,13 +18,21 @@ package org.spongepowered.configurate.yaml;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.CommentedConfigurationNode;
+import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.ConfigurationOptions;
+import org.spongepowered.configurate.RepresentationHint;
 import org.spongepowered.configurate.loader.AbstractConfigurationLoader;
 import org.spongepowered.configurate.loader.CommentHandler;
 import org.spongepowered.configurate.loader.CommentHandlers;
+import org.spongepowered.configurate.loader.ParsingException;
 import org.spongepowered.configurate.util.UnmodifiableCollections;
 import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.emitter.Emitter;
+import org.yaml.snakeyaml.reader.StreamReader;
+import org.yaml.snakeyaml.resolver.Resolver;
 
 import java.io.BufferedReader;
 import java.io.Writer;
@@ -40,6 +48,42 @@ import java.util.Set;
  * @since 4.0.0
  */
 public final class YamlConfigurationLoader extends AbstractConfigurationLoader<CommentedConfigurationNode> {
+
+    /**
+     * The identifier for a YAML anchor that can be used to refer to the node
+     * this hint is set on.
+     *
+     * @since 4.1.0
+     */
+    public static final RepresentationHint<String> ANCHOR_ID = RepresentationHint.of("configurate:anchor-id", String.class);
+
+    /**
+     * The YAML scalar style this node should attempt to use.
+     *
+     * <p>If the chosen scalar style would produce syntactically invalid YAML, a
+     * valid one will replace it.</p>
+     *
+     * @since 4.1.0
+     */
+    public static final RepresentationHint<ScalarStyle> SCALAR_STYLE = RepresentationHint.of("configurate:scalar-style", ScalarStyle.class);
+
+    /**
+     * The YAML node style to use for collection nodes. A {@code null} value
+     * will instruct the emitter to fall back to the
+     * {@link Builder#nodeStyle()} setting.
+     *
+     * @since 4.1.0
+     */
+    public static final RepresentationHint<NodeStyle> NODE_STYLE = RepresentationHint.of("configurate:node-style", NodeStyle.class);
+
+    /**
+     * The explicitly specified tag for a node.
+     *
+     * <p>This can override default type conversion for a YAML document.</p>
+     *
+     * @since 4.1.0
+     */
+    public static final RepresentationHint<Tag> TAG = RepresentationHint.of("configurate:tag", Tag.class);
 
     /**
      * YAML native types from <a href="https://yaml.org/type/">YAML 1.1 Global tags</a>.
@@ -144,23 +188,34 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
         }
     }
 
-    private final ThreadLocal<ConfigurateYaml> yaml;
+    private final DumperOptions options;
+    private final YamlVisitor visitor;
+    private final LoaderOptions loader;
+    private final Resolver resolver;
 
     private YamlConfigurationLoader(final Builder builder) {
         super(builder, new CommentHandler[] {CommentHandlers.HASH});
         final DumperOptions opts = builder.options;
         opts.setDefaultFlowStyle(NodeStyle.asSnakeYaml(builder.style));
-        this.yaml = ThreadLocal.withInitial(() -> new ConfigurateYaml(opts));
+        this.options = opts;
+        this.loader = new LoaderOptions();
+        this.resolver = new Resolver();
+        this.visitor = new YamlVisitor(this.resolver, this.options);
     }
 
     @Override
-    protected void loadInternal(final CommentedConfigurationNode node, final BufferedReader reader) {
-        node.raw(this.yaml.get().loadConfigurate(reader));
+    protected void loadInternal(final CommentedConfigurationNode node, final BufferedReader reader) throws ParsingException {
+        // Match the superclass implementation, except we substitute our own scanner implementation
+        final StreamReader stream = new StreamReader(reader);
+        final YamlParser parser = new YamlParser(new ConfigurateScanner(stream));
+        parser.singleDocumentStream(node);
     }
 
     @Override
-    protected void saveInternal(final ConfigurationNode node, final Writer writer) {
-        this.yaml.get().dump(node.raw(), writer);
+    protected void saveInternal(final ConfigurationNode node, final Writer writer) throws ConfigurateException {
+        final Emitter emitter = new Emitter(writer, this.options);
+        final YamlVisitor.State state = new YamlVisitor.State(this.options, writer);
+        node.visit(this.visitor, state);
     }
 
     @Override
