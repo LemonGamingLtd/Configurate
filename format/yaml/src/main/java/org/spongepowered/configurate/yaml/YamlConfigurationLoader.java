@@ -28,9 +28,6 @@ import org.spongepowered.configurate.loader.CommentHandlers;
 import org.spongepowered.configurate.loader.ParsingException;
 import org.spongepowered.configurate.util.UnmodifiableCollections;
 import org.yaml.snakeyaml.DumperOptions;
-import org.yaml.snakeyaml.LoaderOptions;
-import org.yaml.snakeyaml.constructor.Constructor;
-import org.yaml.snakeyaml.emitter.Emitter;
 import org.yaml.snakeyaml.reader.StreamReader;
 import org.yaml.snakeyaml.resolver.Resolver;
 
@@ -190,31 +187,28 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
 
     private final DumperOptions options;
     private final YamlVisitor visitor;
-    private final LoaderOptions loader;
-    private final Resolver resolver;
+    private final @Nullable NodeStyle defaultNodeStyle;
 
     private YamlConfigurationLoader(final Builder builder) {
         super(builder, new CommentHandler[] {CommentHandlers.HASH});
         final DumperOptions opts = builder.options;
         opts.setDefaultFlowStyle(NodeStyle.asSnakeYaml(builder.style));
+        this.defaultNodeStyle = builder.style;
         this.options = opts;
-        this.loader = new LoaderOptions();
-        this.resolver = new Resolver();
-        this.visitor = new YamlVisitor(this.resolver, this.options);
+        this.visitor = new YamlVisitor(new Resolver(), this.options, Yaml11Tags.REPOSITORY);
     }
 
     @Override
     protected void loadInternal(final CommentedConfigurationNode node, final BufferedReader reader) throws ParsingException {
         // Match the superclass implementation, except we substitute our own scanner implementation
         final StreamReader stream = new StreamReader(reader);
-        final YamlParser parser = new YamlParser(new ConfigurateScanner(stream));
+        final YamlParser parser = new YamlParser(new ConfigurateScanner(stream), Yaml11Tags.REPOSITORY);
         parser.singleDocumentStream(node);
     }
 
     @Override
     protected void saveInternal(final ConfigurationNode node, final Writer writer) throws ConfigurateException {
-        final Emitter emitter = new Emitter(writer, this.options);
-        final YamlVisitor.State state = new YamlVisitor.State(this.options, writer);
+        final YamlVisitor.State state = new YamlVisitor.State(this.options, writer, this.defaultNodeStyle);
         node.visit(this.visitor, state);
     }
 

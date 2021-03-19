@@ -22,8 +22,10 @@ import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.ConfigurationVisitor;
 import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.comments.CommentType;
 import org.yaml.snakeyaml.emitter.Emitter;
 import org.yaml.snakeyaml.error.YAMLException;
+import org.yaml.snakeyaml.events.CommentEvent;
 import org.yaml.snakeyaml.events.DocumentEndEvent;
 import org.yaml.snakeyaml.events.DocumentStartEvent;
 import org.yaml.snakeyaml.events.Event;
@@ -41,11 +43,12 @@ import org.yaml.snakeyaml.resolver.Resolver;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
+import java.util.regex.Pattern;
 
 final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void, ConfigurateException> {
 
+    private static final Pattern COMMENT_SPLIT = Pattern.compile("\r?\n");
+    private static final CommentEvent COMMENT_BLANK_LINE = new CommentEvent(CommentType.BLOCK, "", null, null);
     private static final StreamStartEvent STREAM_START = new StreamStartEvent(null, null);
     private static final StreamEndEvent STREAM_END = new StreamEndEvent(null, null);
     private static final DocumentEndEvent DOCUMENT_END = new DocumentEndEvent(null, null, false);
@@ -56,9 +59,10 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     private final DumperOptions dumper;
     private final TagRepository tags;
 
-    YamlVisitor(final Resolver resolver, final DumperOptions dumper) {
+    YamlVisitor(final Resolver resolver, final DumperOptions dumper, final TagRepository tags) {
         this.resolver = resolver;
         this.dumper = dumper;
+        this.tags = tags;
     }
 
     @Override
@@ -79,7 +83,17 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
         if (node instanceof CommentedConfigurationNodeIntermediary<?>) {
             final @Nullable String comment = ((CommentedConfigurationNodeIntermediary<?>) node).comment();
             if (comment != null) {
-                state.emitComment(comment);
+                for (final String line : COMMENT_SPLIT.split(comment)) {
+                    if (line.isEmpty()) {
+                        state.emit(COMMENT_BLANK_LINE);
+                    } else {
+                        if (!Character.isWhitespace(line.codePointAt(0))) {
+                            state.emit(new CommentEvent(CommentType.BLOCK, " " + line, null, null));
+                        } else {
+                            state.emit(new CommentEvent(CommentType.BLOCK, line, null, null));
+                        }
+                    }
+                }
             }
         }
 
@@ -88,6 +102,7 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
             final Tag implicit = this.resolver.resolve(NodeId.scalar, value, true);
             final Tag explicit = this.resolver.resolve(NodeId.scalar, value, true);
             final ImplicitTuple implicity = new ImplicitTuple(true, true);
+            // final TagRepository.AnalyzedTag analysis = this.tags.analyze(node); // TODO: Handle tags properly
             state.emit(new ScalarEvent(null, implicit.getValue(), implicity, value, null, null,
                     DumperOptions.ScalarStyle.PLAIN));
         }
@@ -96,14 +111,21 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     @Override
     public void enterMappingNode(final ConfigurationNode node, final State state) throws ConfigurateException {
         final Tag implicit = this.resolver.resolve(NodeId.mapping, null, true);
-        state.emit(new MappingStartEvent(anchor(node), implicit.toString(), true, null, null, NodeStyle.asSnakeYaml(determineStyle(node))));
+        state.emit(new MappingStartEvent(
+            anchor(node),
+            implicit.toString(),
+            true,
+            null,
+            null,
+            NodeStyle.asSnakeYaml(determineStyle(node, state))
+        ));
     }
 
     @Override
     public void enterListNode(final ConfigurationNode node, final State state) throws ConfigurateException {
         final Tag implicit = this.resolver.resolve(NodeId.sequence, null, true);
         state.emit(new SequenceStartEvent(anchor(node), implicit.getValue(), true,
-                null, null, NodeStyle.asSnakeYaml(determineStyle(node))));
+                null, null, NodeStyle.asSnakeYaml(determineStyle(node, state))));
     }
 
     @Override
@@ -135,8 +157,9 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
         return null;
     }
 
-    private @Nullable NodeStyle determineStyle(final ConfigurationNode node) {
-        return node.hint(YamlConfigurationLoader.NODE_STYLE);
+    private @Nullable NodeStyle determineStyle(final ConfigurationNode node, final State state) {
+        final @Nullable NodeStyle style = node.hint(YamlConfigurationLoader.NODE_STYLE);
+        return style == null ? state.defaultStyle : style;
     }
 
     private @Nullable String anchor(final ConfigurationNode node) {
@@ -144,63 +167,19 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     }
 
     static class State {
-        private static final @Nullable MethodHandle EMITTER_WRITE_INDENT; // Emitter.writeIndent()
-
-        static {
-            @Nullable MethodHandle emitterWriteIndent = null;
-            try {
-                final MethodHandles.Lookup lookup = MethodHandles.lookup();
-                emitterWriteIndent = lookup.unreflect(Emitter.class.getDeclaredMethod("writeIndent"));
-            } catch (final IllegalAccessException | NoSuchMethodException ignored) {
-            }
-
-            EMITTER_WRITE_INDENT = emitterWriteIndent;
-        }
-
-        private final DumperOptions options;
-        private final Writer writer;
         private final Emitter emit;
-        private @Nullable ConfigurationNode start;
+        @Nullable ConfigurationNode start;
+        final @Nullable NodeStyle defaultStyle;
 
-        State(final DumperOptions options, final Writer writer) {
-            this.options = options;
-            this.writer = writer;
+        State(final DumperOptions options, final Writer writer, final @Nullable NodeStyle defaultStyle) {
             this.emit = new Emitter(writer, options);
+            this.defaultStyle = defaultStyle;
         }
 
         public void emit(final Event event) throws ConfigurateException {
             try {
                 this.emit.emit(event);
             } catch (final YAMLException | IOException ex) {
-                throw new ConfigurateException(ex);
-            }
-        }
-
-        void emitComment(final String comment) throws ConfigurateException {
-            // Comments: Only allowed within block collections
-            // and indent-prefixed
-            boolean noneSeen = true;
-            try {
-                for (final String line : comment.split("\n")) {
-                    if (!noneSeen) {
-                        this.writer.write(this.options.getLineBreak().getString());
-                    }
-                    noneSeen = false;
-
-                    if (EMITTER_WRITE_INDENT != null) {
-                        try {
-                            EMITTER_WRITE_INDENT.invoke();
-                        } catch (final Throwable ex) {
-                            throw new ConfigurateException(ex);
-                        }
-                    }
-                    this.writer.write("# ");
-                    this.writer.write(line);
-                }
-                if (!noneSeen) {
-                    this.writer.write(this.options.getLineBreak().getString());
-                }
-            } catch (final IOException ex) {
                 throw new ConfigurateException(ex);
             }
         }

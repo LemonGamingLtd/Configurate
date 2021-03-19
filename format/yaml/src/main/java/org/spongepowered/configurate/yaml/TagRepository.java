@@ -33,7 +33,7 @@ import java.util.Objects;
  *
  * @since 4.1.0
  */
-public final class TagRepository {
+final class TagRepository {
 
     private final Tag unresolvedTag;
     private final List<Tag> tags;
@@ -134,7 +134,7 @@ public final class TagRepository {
             calculated = this.byType(Map.class);
         } else if (node.isList()) {
             calculated = this.byType(List.class);
-        } else if (node.virtual()) {
+        } else if (node.isNull()) {
             calculated = this.byType(void.class);
         } else {
             calculated = this.byType(node.rawScalar().getClass());

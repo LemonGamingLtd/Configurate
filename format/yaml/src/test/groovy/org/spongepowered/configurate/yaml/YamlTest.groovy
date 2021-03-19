@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.fail
 
 import org.checkerframework.checker.nullness.qual.Nullable
 import org.spongepowered.configurate.CommentedConfigurationNode
+import org.yaml.snakeyaml.events.Event
+import org.yaml.snakeyaml.parser.ParserImpl
 import org.yaml.snakeyaml.reader.StreamReader
 
 import java.io.BufferedReader
@@ -34,7 +36,15 @@ import java.nio.charset.StandardCharsets
 interface YamlTest {
 
     default CommentedConfigurationNode parseString(final String input) {
-        final YamlParser parser = new YamlParser(new ConfigurateScanner(new StreamReader(input)))
+        // Print events
+        def scanner = new ConfigurateScanner(new StreamReader(input))
+        scanner.emitComments = true
+        def dumper = new ParserImpl(scanner)
+        do {
+            System.out.println(dumper.getEvent())
+        } while (!dumper.peekEvent().is(Event.ID.StreamEnd))
+
+        final YamlParser parser = new YamlParser(new ConfigurateScanner(new StreamReader(input)), Yaml11Tags.REPOSITORY)
         final CommentedConfigurationNode result = CommentedConfigurationNode.root()
         try {
             parser.singleDocumentStream(result)
@@ -45,10 +55,18 @@ interface YamlTest {
     }
 
     default CommentedConfigurationNode parseResource(final URL url) {
+        // Print events
+        def scanner = new ConfigurateScanner(new StreamReader(url.readLines("UTF-8").join("\n")))
+        scanner.emitComments = true
+        def dumper = new ParserImpl(scanner)
+        do {
+            System.out.println(dumper.getEvent())
+        } while (!dumper.peekEvent().is(Event.ID.StreamEnd))
+
         assertNotNull(url, "Expected resource is missing")
         try {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), StandardCharsets.UTF_8))) {
-                final YamlParser parser = new YamlParser(new ConfigurateScanner(new StreamReader(reader)))
+                final YamlParser parser = new YamlParser(new ConfigurateScanner(new StreamReader(reader)), Yaml11Tags.REPOSITORY)
                 final CommentedConfigurationNode result = CommentedConfigurationNode.root()
                 parser.singleDocumentStream(result)
                 return result
@@ -74,6 +92,17 @@ interface YamlTest {
             fail(e)
         }
         return writer.toString()
+    }
+
+    default String normalize(final String input) {
+        def stripped = input.stripIndent(true)
+        if (stripped.startsWith("\r\n")) {
+            return stripped.substring(2)
+        } else if (stripped.startsWith("\n")) {
+            return stripped.substring(1)
+        } else {
+            return stripped
+        }
     }
 
 }

@@ -40,4 +40,8 @@ class YamlParserTest implements YamlTest {
                 .getMessage().contains("Duplicate key"))
     }
 
+    // Different types of scalars (folded, block, etc)
+
+    // Test all implicit tags are resolved properly
+
 }

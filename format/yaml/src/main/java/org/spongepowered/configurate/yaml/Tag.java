@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
  * @since 4.1.0
  */
 @AutoValue
-public abstract class Tag {
+abstract class Tag {
 
     /**
      * Create a new builder for a {@link Tag}.

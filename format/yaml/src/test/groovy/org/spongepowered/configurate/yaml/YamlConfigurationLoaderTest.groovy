@@ -37,23 +37,19 @@ class YamlConfigurationLoaderTest {
 
     @Test
     void testSimpleLoading() throws ConfigurateException {
-        final def url = getClass().getResource("/example.yml")
-        final def out = new StringWriter()
+        final def url = getClass().getResource("example.yml")
         final def loader = YamlConfigurationLoader.builder()
                 .url(url)
-                .sink(() -> new BufferedWriter(out)).build()
+                .build()
         final def node = loader.load()
 
         assertEquals("unicorn", node.node("test", "op-level").raw())
         assertEquals("dragon", node.node("other", "op-level").raw())
         assertEquals("dog park", node.node("other", "location").raw())
 
-        loader.save(node)
-        println(out.toString())
-
         final def fooList = new ArrayList<>(node.node("foo")
-            .getList(new TypeToken<Map<String, List<String>>>() {}))
-        assertEquals(0, fooList.get(0).get("bar").size())
+            .getList(new TypeToken<Map<String, List<Map<String, String>>>>() {}))
+        assertEquals(1, fooList.get(0).get("bar").size())
 
     }
 
@@ -70,7 +66,7 @@ class YamlConfigurationLoaderTest {
             })
         })
 
-        final URL url = getClass().getResource("/tab-example.yml")
+        final URL url = getClass().getResource("tab-example.yml")
         final ConfigurationLoader<CommentedConfigurationNode> loader = YamlConfigurationLoader.builder()
                 .url(url).build()
         final ConfigurationNode node = loader.load()

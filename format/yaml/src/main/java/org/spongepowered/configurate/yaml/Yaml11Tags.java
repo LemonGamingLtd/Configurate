@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  *
  * @since 4.1.0
  */
-public final class Yaml11Tags {
+final class Yaml11Tags {
 
     private Yaml11Tags() {
     }
@@ -160,5 +160,17 @@ public final class Yaml11Tags {
                     + "(\\.[0-9]*)?" // fraction
                     + "(([ \t]*)Z|[-+][0-9]{1,2}(:[0-9]{2})?)?")) // time zone
             .build();
+
+    static final TagRepository REPOSITORY = TagRepository.of(
+        Tag.builder().uri("?").nativeType(Object.class).targetPattern(Pattern.compile(".+")).build(),
+        BINARY,
+        BOOL,
+        INT,
+        FLOAT,
+        MERGE,
+        NULL,
+        STR,
+        TIMESTAMP
+    );
 
 }

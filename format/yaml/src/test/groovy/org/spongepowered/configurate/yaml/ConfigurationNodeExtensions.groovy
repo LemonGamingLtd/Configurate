@@ -16,8 +16,15 @@
  */
 package org.spongepowered.configurate.yaml
 
-/**
- * Testing scalar escaping in
- */
-class ScalarEscapingTest {
+import org.spongepowered.configurate.CommentedConfigurationNode
+import org.spongepowered.configurate.ScopedConfigurationNode
+
+class ConfigurationNodeExtensions {
+    static <N extends ScopedConfigurationNode<N>> N getAt(final N node, final Object... path) {
+        return node.node(path)
+    }
+
+    static CommentedConfigurationNode getAt(final CommentedConfigurationNode node, final Object... path) {
+        return node.node(path)
+    }
 }
