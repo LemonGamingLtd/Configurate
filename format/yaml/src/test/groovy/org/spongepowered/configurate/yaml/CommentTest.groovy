@@ -44,8 +44,8 @@ class CommentTest implements YamlTest {
                 cat: purrs
             """))
 
-        assertEquals("purrs", node["test", "cat"].raw())
-        assertEquals("meow", node["test", "cat"].comment())
+        assertEquals("purrs", node.node("test", "cat").raw())
+        assertEquals("meow", node.node("test", "cat").comment())
     }
 
     @Test
@@ -78,8 +78,8 @@ class CommentTest implements YamlTest {
         final CommentedConfigurationNode child = test.node("blah", 0)
         assertFalse(child.virtual())
         assertEquals("beginning sequence", child.comment())
-        assertEquals("first on map entry", child["test"].comment())
-        assertEquals("on second mapping", child["test2"].comment())
+        assertEquals("first on map entry", child.node("test").comment())
+        assertEquals("on second mapping", child.node("test2").comment())
     }
 
     // flow collections are a bit trickier
@@ -97,9 +97,9 @@ class CommentTest implements YamlTest {
             }
         """))
 
-        assertEquals("hello", test["test"].comment())
-        assertNull(test["uncommented"].comment())
-        assertEquals("hi there", test["last"].comment())
+        assertEquals("hello", test.node("test").comment())
+        assertNull(test.node("uncommented").comment())
+        assertEquals("hi there", test.node("last").comment())
     }
 
     @Test
@@ -115,13 +115,13 @@ class CommentTest implements YamlTest {
         """))
 
         assertEquals("on list", test.comment())
-        assertEquals("first", test[0].comment())
-        assertEquals("second", test[1].comment())
+        assertEquals("first", test.node(0).comment())
+        assertEquals("second", test.node(1).comment())
     }
 
     @Test
     void testLoadMixedStructure() {
-        final CommentedConfigurationNode test = parseResource(getClass().getResource("/comments-complex.yml"))
+        final CommentedConfigurationNode test = parseResource(getClass().getResource("comments-complex.yml"))
 
         assertEquals("very mapping", test["core", "users", 0, "second"].comment())
     }
@@ -134,8 +134,7 @@ class CommentTest implements YamlTest {
 
         assertEquals(normalize("""
         # i have a comment
-        test
-        """), dump(node).trim())
+        test"""), dump(node).trim())
     }
 
     @Test
@@ -173,8 +172,8 @@ class CommentTest implements YamlTest {
         final def expected = normalize("""
         - Hello
         - World
-        - one: aaa
-          two: bbb
+        -   one: aaa
+            two: bbb
         """)
         assertEquals(expected, this.dump(node, NodeStyle.BLOCK))
     }

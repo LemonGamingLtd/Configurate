@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue
 
 import org.junit.jupiter.api.Test
 import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.loader.ParsingException
 
 import java.io.IOException
 
@@ -36,7 +37,7 @@ class YamlParserTest implements YamlTest {
 
     @Test
     void testDuplicateKeysForbidden() throws IOException {
-        assertTrue(assertThrows(IOException.class, () -> parseString("{duplicated: 1, duplicated: 2}"))
+        assertTrue(assertThrows(ParsingException, { parseString("{duplicated: 1, duplicated: 2}") })
                 .getMessage().contains("Duplicate key"))
     }
 

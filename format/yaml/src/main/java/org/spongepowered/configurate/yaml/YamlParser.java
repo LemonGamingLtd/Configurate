@@ -34,6 +34,8 @@ import org.yaml.snakeyaml.events.Event;
 import org.yaml.snakeyaml.events.NodeEvent;
 import org.yaml.snakeyaml.events.ScalarEvent;
 import org.yaml.snakeyaml.parser.ParserImpl;
+import org.yaml.snakeyaml.reader.StreamReader;
+import org.yaml.snakeyaml.scanner.ScannerImpl;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,14 +53,14 @@ final class YamlParser extends ParserImpl {
     private @Nullable StringBuilder commentCollector;
     private final boolean processComments;
 
-    YamlParser(final ConfigurateScanner reader, final TagRepository tags) {
-        super(reader);
+    YamlParser(final StreamReader reader, final TagRepository tags) {
+        super(new ScannerImpl(reader).setAcceptTabs(true));
         this.processComments = true; // todo: make configurable
         this.tags = tags;
     }
 
-    private ConfigurateScanner scanner() {
-        return (ConfigurateScanner) this.scanner;
+    private ScannerImpl scanner() {
+        return (ScannerImpl) this.scanner;
     }
 
     Event requireEvent(final Event.ID type) throws ParsingException {
@@ -153,6 +155,10 @@ final class YamlParser extends ParserImpl {
     }
 
     public void document(final ConfigurationNode node) throws ParsingException {
+        if (peekEvent().is(Event.ID.StreamEnd)) {
+            return;
+        }
+
         requireEvent(Event.ID.DocumentStart);
         if (this.processComments && node instanceof CommentedConfigurationNodeIntermediary<?>) {
             // Only collect comments if we can handle them in the first place
@@ -212,7 +218,7 @@ final class YamlParser extends ParserImpl {
                     throw makeError(node, peeked.getStartMark(), "Unexpected event type " + peeked.getEventId(), null);
             }
         } catch (final MarkedYAMLException ex) {
-            throw new ParsingException(node, ex.getProblemMark().getLine(), ex.getProblemMark().getColumn(), ex.getContext(), ex.getProblem());
+            throw new ParsingException(node, ex.getProblemMark().getLine(), ex.getProblemMark().getColumn(), ex.getProblemMark().get_snippet(), ex.getProblem());
         }
     }
 
@@ -229,9 +235,10 @@ final class YamlParser extends ParserImpl {
         final ConfigurationNode keyHolder = BasicConfigurationNode.root(node.options());
         while (!checkEvent(Event.ID.MappingEnd)) {
             value(keyHolder, false);
+            // TODO: Merge key?
             final ConfigurationNode child = node.node(keyHolder.raw());
             if (!child.virtual()) { // duplicate keys are forbidden (3.2.1.3)
-                throw makeError(node, this.scanner().peekToken().getStartMark(), "Duplicate key '" + child.key() + "' encountered!", null);
+                throw makeError(node, this.scanner.peekToken().getStartMark(), "Duplicate key '" + child.key() + "' encountered!", null);
             }
             value(child);
             skipComments();

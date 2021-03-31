@@ -80,7 +80,15 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
      *
      * @since 4.1.0
      */
-    public static final RepresentationHint<Tag> TAG = RepresentationHint.of("configurate:tag", Tag.class);
+    public static final RepresentationHint<OldTag> TAG = RepresentationHint.of("configurate:tag", OldTag.class);
+
+    /**
+     * Whether comments will be enabled by default.
+     *
+     * <p>Comments will be introduced as an experimental feature, defaulting to
+     * {@code false} at first, but changed to {@code true} in a later release.</p>
+     */
+    private static final boolean COMMENTS_DEFAULT = Boolean.parseBoolean(System.getProperty("configurate.yaml.commentsEnabled", "false"));
 
     /**
      * YAML native types from <a href="https://yaml.org/type/">YAML 1.1 Global tags</a>.
@@ -109,6 +117,7 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
     public static final class Builder extends AbstractConfigurationLoader.Builder<Builder, YamlConfigurationLoader> {
         private final DumperOptions options = new DumperOptions();
         private @Nullable NodeStyle style;
+        private boolean enableComments = COMMENTS_DEFAULT;
 
         Builder() {
             indent(4);
@@ -179,6 +188,37 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
             return this.style;
         }
 
+        /**
+         * Set whether comment handling is enabled on this loader.
+         *
+         * <p>Comment handling is available as an <em>experimental</em> feature
+         * in 4.1.0. There may be edge cases where parsing or writing while
+         * comments are enabled that can cause parse or emit errors, or badly
+         * formatted output data.</p>
+         *
+         * <p>When comment handling is enabled, comments will be read from files
+         * and written back to files where possible.</p>
+         *
+         * @param enableComments whether comment handling should be enabled
+         * @return this builder (for chaining)
+         * @since 4.1.0
+         */
+        public Builder commentsEnabled(final boolean enableComments) {
+            this.enableComments = enableComments;
+            return this;
+        }
+
+        /**
+         * Get whether comment handling is enabled.
+         *
+         * @return whether comment handling is enabled
+         * @since 4.1.0
+         * @see #commentsEnabled(boolean) for details on comment handling
+         */
+        public boolean commentsEnabled() {
+            return this.enableComments;
+        }
+
         @Override
         public YamlConfigurationLoader build() {
             return new YamlConfigurationLoader(this);
@@ -188,21 +228,22 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
     private final DumperOptions options;
     private final YamlVisitor visitor;
     private final @Nullable NodeStyle defaultNodeStyle;
+    private final boolean enableComments;
 
     private YamlConfigurationLoader(final Builder builder) {
         super(builder, new CommentHandler[] {CommentHandlers.HASH});
         final DumperOptions opts = builder.options;
-        opts.setDefaultFlowStyle(NodeStyle.asSnakeYaml(builder.style));
-        this.defaultNodeStyle = builder.style;
+        opts.setDefaultFlowStyle(NodeStyle.asSnakeYaml(builder.nodeStyle()));
+        this.defaultNodeStyle = builder.nodeStyle();
+        this.enableComments = builder.commentsEnabled();
         this.options = opts;
-        this.visitor = new YamlVisitor(new Resolver(), this.options, Yaml11Tags.REPOSITORY);
+        this.visitor = new YamlVisitor(new Resolver(), this.options, this.enableComments, Yaml11Tags.REPOSITORY);
     }
 
     @Override
     protected void loadInternal(final CommentedConfigurationNode node, final BufferedReader reader) throws ParsingException {
         // Match the superclass implementation, except we substitute our own scanner implementation
-        final StreamReader stream = new StreamReader(reader);
-        final YamlParser parser = new YamlParser(new ConfigurateScanner(stream), Yaml11Tags.REPOSITORY);
+        final YamlParser parser = new YamlParser(new StreamReader(reader), Yaml11Tags.REPOSITORY);
         parser.singleDocumentStream(node);
     }
 

@@ -42,7 +42,7 @@ final class Yaml11Tags {
      * @see <a href="https://yaml.org/type/binary.html">tag:yaml.org,2002:binary</a>
      * @since 4.1.0
      */
-    public static final Tag BINARY = Tag.builder()
+    public static final OldTag BINARY = OldTag.builder()
             .uri(yamlOrg("binary"))
             .nativeType(byte[].class)
             .targetPattern(Pattern.compile("base64 TODO"))
@@ -57,7 +57,7 @@ final class Yaml11Tags {
      * @see <a href="https://yaml.org/type/bool.html">tag:yaml.org,2002:bool</a>
      * @since 4.1.0
      */
-    public static final Tag BOOL = Tag.builder()
+    public static final OldTag BOOL = OldTag.builder()
             .uri(yamlOrg("bool"))
             .nativeType(Boolean.class)
             .targetPattern(Pattern.compile("y|Y|yes|Yes|YES|n|N|no|No|NO"
@@ -71,7 +71,7 @@ final class Yaml11Tags {
      * @see <a href="https://yaml.org/type/float.html">tag:yaml.org,2002:float</a>
      * @since 4.1.0
      */
-    public static final Tag FLOAT = Tag.builder()
+    public static final OldTag FLOAT = OldTag.builder()
             .uri(yamlOrg("float"))
             .nativeType(Double.class)
             .targetPattern(Pattern.compile("[-+]?([0-9][0-9_]*)?\\.[0-9.]*([eE][-+][0-9]+)?" // base 10
@@ -86,7 +86,7 @@ final class Yaml11Tags {
      * @see <a href="https://yaml.org/type/int.html">tag:yaml.org,2002:int</a>
      * @since 4.1.0
      */
-    public static final Tag INT = Tag.builder()
+    public static final OldTag INT = OldTag.builder()
             .uri(yamlOrg("int"))
             .nativeType(Long.class)
             .targetPattern(Pattern.compile("[-+]?0b[0-1_]+" // base 2
@@ -105,7 +105,7 @@ final class Yaml11Tags {
      * @see <a href="https://yaml.org/type/merge.html">tag:yaml.org,2002:merge</a>
      * @since 4.1.0
      */
-    public static final Tag MERGE = Tag.builder()
+    public static final OldTag MERGE = OldTag.builder()
             .uri(yamlOrg("merge"))
             .nativeType(ConfigurationNode.class)
             .targetPattern(Pattern.compile("<<"))
@@ -121,7 +121,7 @@ final class Yaml11Tags {
      * @see <a href="https://yaml.org/type/null.html">tag:yaml.org,2002:null</a>
      * @since 4.1.0
      */
-    public static final Tag NULL = Tag.builder()
+    public static final OldTag NULL = OldTag.builder()
             .uri(yamlOrg("null"))
             .nativeType(Void.class)
             .targetPattern(Pattern.compile("~"
@@ -135,7 +135,7 @@ final class Yaml11Tags {
      * @see <a href="https://yaml.org/type/str.html">tag:yaml.org,2002:str</a>
      * @since 4.1.0
      */
-    public static final Tag STR = Tag.builder()
+    public static final OldTag STR = OldTag.builder()
             .uri(yamlOrg("str"))
             .nativeType(String.class)
             .targetPattern(Pattern.compile(".+")) // empty scalar is NULL
@@ -147,7 +147,7 @@ final class Yaml11Tags {
      * @see <a href="https://yaml.org/type/timestamp.html">tag:yaml.org,2002:timestamp</a>
      * @since 4.1.0
      */
-    public static final Tag TIMESTAMP = Tag.builder()
+    public static final OldTag TIMESTAMP = OldTag.builder()
             .uri(yamlOrg("timestamp"))
             .nativeType(ZonedDateTime.class)
             .targetPattern(Pattern.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}" // YYYY-MM-DD
@@ -162,7 +162,7 @@ final class Yaml11Tags {
             .build();
 
     static final TagRepository REPOSITORY = TagRepository.of(
-        Tag.builder().uri("?").nativeType(Object.class).targetPattern(Pattern.compile(".+")).build(),
+        OldTag.builder().uri("?").nativeType(Object.class).targetPattern(Pattern.compile(".+")).build(),
         BINARY,
         BOOL,
         INT,

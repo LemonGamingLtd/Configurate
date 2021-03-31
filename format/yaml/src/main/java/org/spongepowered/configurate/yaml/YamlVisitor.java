@@ -57,11 +57,13 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
 
     private final Resolver resolver;
     private final DumperOptions dumper;
+    private final boolean enableComments;
     private final TagRepository tags;
 
-    YamlVisitor(final Resolver resolver, final DumperOptions dumper, final TagRepository tags) {
+    YamlVisitor(final Resolver resolver, final DumperOptions dumper, final boolean enableComments, final TagRepository tags) {
         this.resolver = resolver;
         this.dumper = dumper;
+        this.enableComments = enableComments;
         this.tags = tags;
     }
 
@@ -80,7 +82,7 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
 
     @Override
     public void enterNode(final ConfigurationNode node, final State state) throws ConfigurateException {
-        if (node instanceof CommentedConfigurationNodeIntermediary<?>) {
+        if (node instanceof CommentedConfigurationNodeIntermediary<?> && this.enableComments) {
             final @Nullable String comment = ((CommentedConfigurationNodeIntermediary<?>) node).comment();
             if (comment != null) {
                 for (final String line : COMMENT_SPLIT.split(comment)) {
@@ -158,6 +160,9 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     }
 
     private @Nullable NodeStyle determineStyle(final ConfigurationNode node, final State state) {
+        // some basic rules:
+        // - if a node has any children with comments, convert it to block style
+        // - when the default style is `AUTO` and `flowLevel` == 0,
         final @Nullable NodeStyle style = node.hint(YamlConfigurationLoader.NODE_STYLE);
         return style == null ? state.defaultStyle : style;
     }

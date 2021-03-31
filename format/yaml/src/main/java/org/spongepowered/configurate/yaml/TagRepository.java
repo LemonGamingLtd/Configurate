@@ -36,9 +36,12 @@ import java.util.Objects;
 final class TagRepository {
 
     private final Tag unresolvedTag;
-    private final List<Tag> tags;
-    private final Map<Class<?>, Tag> byErasedType;
-    private final Map<String, Tag> byName;
+    private final Tag stringTag;
+    private final Tag sequenceTag;
+    private final Tag mappingTag;
+    private final List<OldTag> tags;
+    private final Map<Class<?>, OldTag> byErasedType;
+    private final Map<String, OldTag> byName;
 
     /**
      * Create a new tag repository.
@@ -49,7 +52,7 @@ final class TagRepository {
      * @return new tag repository
      * @since 4.1.0
      */
-    public static TagRepository of(final Tag unresolved, final List<Tag> tags) {
+    public static TagRepository of(final OldTag unresolved, final List<OldTag> tags) {
         return new TagRepository(requireNonNull(unresolved, "unresolved"), UnmodifiableCollections.copyOf(tags));
     }
 
@@ -62,20 +65,20 @@ final class TagRepository {
      * @return a new tag repository
      * @since 4.1.0
      */
-    public static TagRepository of(final Tag unresolved, final Tag... tags) {
+    public static TagRepository of(final OldTag unresolved, final OldTag... tags) {
         return new TagRepository(requireNonNull(unresolved, "unresolved"), UnmodifiableCollections.toList(tags));
     }
 
-    TagRepository(final Tag unresolved, final List<Tag> tags) {
+    TagRepository(final OldTag unresolved, final List<OldTag> tags) {
         this.unresolvedTag = unresolved;
         this.tags = tags;
         this.byErasedType = UnmodifiableCollections.buildMap(map -> {
-            for (final Tag tag : this.tags) {
+            for (final OldTag tag : this.tags) {
                 map.put(erase(tag.nativeType()), tag);
             }
         });
         this.byName = UnmodifiableCollections.buildMap(map -> {
-            for (final Tag tag : this.tags) {
+            for (final OldTag tag : this.tags) {
                 map.put(tag.uri().toString(), tag);
             }
         });
@@ -88,8 +91,8 @@ final class TagRepository {
      * @return the first matching tag
      * @since 4.1.0
      */
-    public @Nullable Tag forInput(final String scalar) {
-        for (final Tag tag : this.tags) {
+    public @Nullable OldTag forInput(final String scalar) {
+        for (final OldTag tag : this.tags) {
             if (tag.targetPattern().matcher(scalar).matches()) {
                 return tag;
             }
@@ -105,7 +108,7 @@ final class TagRepository {
      * @return a tag, if any is present
      * @since 4.1.0
      */
-    public @Nullable Tag named(final String name) {
+    public @Nullable OldTag named(final String name) {
         return this.byName.get(name);
     }
 
@@ -116,7 +119,7 @@ final class TagRepository {
      * @return a tag, if any is registered
      * @since 4.1.0
      */
-    public @Nullable Tag byType(final Class<?> type) {
+    public @Nullable OldTag byType(final Class<?> type) {
         return this.byErasedType.get(type);
     }
 
@@ -128,8 +131,8 @@ final class TagRepository {
      * @since 4.1.0
      */
     public AnalyzedTag analyze(final ConfigurationNode node) {
-        final @Nullable Tag explicit = node.hint(YamlConfigurationLoader.TAG);
-        final @Nullable Tag calculated;
+        final @Nullable OldTag explicit = node.hint(YamlConfigurationLoader.TAG);
+        final @Nullable OldTag calculated;
         if (node.isMap()) {
             calculated = this.byType(Map.class);
         } else if (node.isList()) {
@@ -160,7 +163,7 @@ final class TagRepository {
          * @return the resolved tag
          * @since 4.1.0
          */
-        static AnalyzedTag of(final Tag resolved, final @Nullable Tag specified) {
+        static AnalyzedTag of(final OldTag resolved, final @Nullable OldTag specified) {
             return new AutoValue_TagRepository_AnalyzedTag(resolved, specified);
         }
 
@@ -176,7 +179,7 @@ final class TagRepository {
          * @return the calculated tag
          * @since 4.1.0
          */
-        public abstract Tag resolved();
+        public abstract OldTag resolved();
 
         /**
          * Get the manually specified tag for this node.
@@ -184,7 +187,7 @@ final class TagRepository {
          * @return the specified tag
          * @since 4.1.0
          */
-        public abstract @Nullable Tag specified();
+        public abstract @Nullable OldTag specified();
 
         /**
          * Get whether the provided tag is an implicit tag or not.

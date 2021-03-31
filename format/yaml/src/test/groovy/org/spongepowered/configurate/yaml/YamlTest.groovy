@@ -19,35 +19,34 @@ package org.spongepowered.configurate.yaml
 import static org.junit.jupiter.api.Assertions.assertNotNull
 import static org.junit.jupiter.api.Assertions.fail
 
-import org.checkerframework.checker.nullness.qual.Nullable
 import org.spongepowered.configurate.CommentedConfigurationNode
+import org.spongepowered.configurate.ConfigurateException
 import org.yaml.snakeyaml.events.Event
 import org.yaml.snakeyaml.parser.ParserImpl
 import org.yaml.snakeyaml.reader.StreamReader
+import org.yaml.snakeyaml.scanner.ScannerImpl
+import org.yaml.snakeyaml.tokens.Token
 
-import java.io.BufferedReader
-import java.io.BufferedWriter
-import java.io.IOException
-import java.io.InputStreamReader
-import java.io.StringWriter
-import java.net.URL
 import java.nio.charset.StandardCharsets
 
 interface YamlTest {
 
     default CommentedConfigurationNode parseString(final String input) {
         // Print events
-        def scanner = new ConfigurateScanner(new StreamReader(input))
+        def scanner = new ScannerImpl(new StreamReader(input))
         scanner.emitComments = true
+        scanner.acceptTabs = true
         def dumper = new ParserImpl(scanner)
         do {
             System.out.println(dumper.getEvent())
-        } while (!dumper.peekEvent().is(Event.ID.StreamEnd))
+        } while (!dumper.checkEvent(Event.ID.StreamEnd))
 
-        final YamlParser parser = new YamlParser(new ConfigurateScanner(new StreamReader(input)), Yaml11Tags.REPOSITORY)
+        final YamlParser parser = new YamlParser(new StreamReader(input), Yaml11Tags.REPOSITORY)
         final CommentedConfigurationNode result = CommentedConfigurationNode.root()
         try {
             parser.singleDocumentStream(result)
+        } catch (final ConfigurateException ex) {
+            throw ex
         } catch (final IOException ex) {
             fail(ex)
         }
@@ -56,8 +55,9 @@ interface YamlTest {
 
     default CommentedConfigurationNode parseResource(final URL url) {
         // Print events
-        def scanner = new ConfigurateScanner(new StreamReader(url.readLines("UTF-8").join("\n")))
+        def scanner = new ScannerImpl(new StreamReader(url.readLines("UTF-8").join("\n")))
         scanner.emitComments = true
+        scanner.acceptTabs = true
         def dumper = new ParserImpl(scanner)
         do {
             System.out.println(dumper.getEvent())
@@ -66,7 +66,7 @@ interface YamlTest {
         assertNotNull(url, "Expected resource is missing")
         try {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), StandardCharsets.UTF_8))) {
-                final YamlParser parser = new YamlParser(new ConfigurateScanner(new StreamReader(reader)), Yaml11Tags.REPOSITORY)
+                final YamlParser parser = new YamlParser(new StreamReader(reader), Yaml11Tags.REPOSITORY)
                 final CommentedConfigurationNode result = CommentedConfigurationNode.root()
                 parser.singleDocumentStream(result)
                 return result

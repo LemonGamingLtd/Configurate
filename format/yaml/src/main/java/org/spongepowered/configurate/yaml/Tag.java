@@ -1,148 +1,112 @@
-/*
- * Configurate
- * Copyright (C) zml and Configurate contributors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.spongepowered.configurate.yaml;
 
-import com.google.auto.value.AutoValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.serialize.ScalarSerializer;
 
-import java.lang.reflect.Type;
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
- * A YAML 1.1/1.2 tag
- *
- * @apiNote Design based on §3.2.1.1 of the YAML 1.1 spec
- * @since 4.1.0
+ * A YAML tag encoding data type information
  */
-@AutoValue
-abstract class Tag {
+interface Tag {
 
-    /**
-     * Create a new builder for a {@link Tag}.
-     *
-     * @return a new builder
-     * @since 4.1.0
-     */
-    public static Tag.Builder builder() {
-        return new AutoValue_Tag.Builder();
-    }
-
-    Tag() {}
-
-    /**
-     * The canonical tag URI.
-     *
-     * @return tag uri, with `tag:` schema
-     * @since 4.1.0
-     */
-    public abstract URI uri();
-
-    /**
-     * The native type that maps to this tag.
-     *
-     * @return native type for tag
-     * @since 4.1.0
-     */
-    public abstract Type nativeType();
-
-    /**
-     * Pattern to test scalar values against when resolving this tag.
-     *
-     * @return match pattern
-     * @apiNote See §3.3.2 of YAML 1.1 spec
-     * @since 4.1.0
-     */
-    public abstract Pattern targetPattern();
-
-    /**
-     * Whether this tag is a global tag with a full namespace or a local one.
-     *
-     * @return if this is a global tag
-     * @since 4.1.0
-     */
-    public final boolean global() {
-        return uri().getScheme().equals("tag");
+    static Builder builder() {
+        return new TagImpl.BuilderImpl();
     }
 
     /**
-     * A builder for {@link Tag Tags}.
+     * The URI referring to this tag.
+     *
+     * <p>The returned URI will be in the `tag` schema.</p>
+     *
+     * @return the tag URI
+     * @since 4.1.0
+     */
+    URI uri();
+
+    /**
+     * Get the Java type this tag will deserialize to.
+     *
+     * @return this tag's native type
+     * @since 4.1.0
+     */
+    Class<?> nativeType();
+
+    /**
+     * Read from the parser into {@code target}
+     * @param target node to write into
+     * @param source source TODO: add extra context for
+     */
+    void compose(final ConfigurationNode target, final YamlParser source);
+
+    void emit(final ConfigurationNode source, final YamlVisitor.State state);
+
+    interface Scalar {
+
+        /**
+         * A pattern that indicates this tag can be used as an
+         * <em>implicit tag</em>. This allows it to be resolved from plain
+         * scalars without any tag specified.
+         *
+         * @return the pattern matching this tag
+         */
+        @Nullable Pattern matchPattern();
+    }
+
+    /**
+     * A builder for tags.
      *
      * @since 4.1.0
      */
-    @AutoValue.Builder
-    public abstract static class Builder {
+    interface Builder {
 
         /**
-         * Set the URI used to refer to the tag.
+         * Apply a local URL (starting with {@code !} to this tag.
          *
-         * @param url canonical tag URI
+         * @param id the tag id
          * @return this builder
          * @since 4.1.0
          */
-        public abstract Builder uri(URI url);
+        Builder local(final String id);
 
         /**
-         * Set the URI used to refer to the tag, parsing a new URL from
-         * the argument.
-         *
-         * @param tagUrl canonical tag URI
-         * @return this builder
-         * @since 4.1.0
+         * The {@link URI} uniquely pointing to this tag
+         * @param uri
+         * @return
          */
-        public final Builder uri(final String tagUrl) {
-            try {
-                if (tagUrl.startsWith("!")) {
-                    return this.uri(new URI(tagUrl.substring(1)));
-                } else {
-                    return this.uri(new URI(tagUrl));
-                }
-            } catch (final URISyntaxException e) {
-                throw new RuntimeException(e);
-            }
+        Builder uri(final URI uri);
+
+        /**
+         * The native type this tag deserializes to
+         * @param nativeType
+         * @return
+         */
+        Builder nativeType(final Class<?> nativeType);
+
+        Scalar scalar(final Pattern matchPattern);
+
+        Collection collection();
+
+        interface Scalar {
+            Scalar compose(final BiConsumer<ConfigurationNode, YamlParser> composer);
+
+            Scalar represent(final Function<ConfigurationNode, String> emit);
+
+            Scalar from(final ScalarSerializer<?> serializer);
+
+            Tag build();
         }
 
-        /**
-         * The Java type that will be used to represent this value in the node
-         * structure.
-         *
-         * @param type type for the value
-         * @return this builder
-         * @since 4.1.0
-         */
-        public abstract Builder nativeType(Type type);
+        interface Collection {
+            Collection compose(final BiConsumer<ConfigurationNode, YamlParser> composer);
+            Collection represent(final BiConsumer<ConfigurationNode, YamlVisitor.State> emitter);
 
-        /**
-         * Pattern to match an undefined scalar string to this tag as an
-         * <em>implicit tag</em>.
-         *
-         * @param targetPattern pattern to match
-         * @return this builder
-         * @since 4.1.0
-         */
-        public abstract Builder targetPattern(Pattern targetPattern);
-
-        /**
-         * Create a new tag from the provided parameters.
-         *
-         * @return a new tag
-         * @since 4.1.0
-         */
-        public abstract Tag build();
+            Tag build();
+        }
 
     }
 

@@ -95,6 +95,9 @@ class YamlConfigurationLoaderTest {
 
         loader.save(node)
 
-        assertEquals(getClass().getResource("write-expected.yml").getText(StandardCharsets.UTF_8.name()), target.getText(StandardCharsets.UTF_8.name()))
+        assertEquals(
+            getClass().getResource("write-expected.yml").getText(StandardCharsets.UTF_8.name()).replace("\r\n", "\n"),
+            target.getText(StandardCharsets.UTF_8.name()).replace("\r\n", "\n")
+        )
     }
 }
