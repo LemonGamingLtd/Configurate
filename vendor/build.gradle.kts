@@ -1,14 +1,32 @@
 import javax.xml.parsers.DocumentBuilderFactory
 
+buildscript {
+    repositories {
+        maven("https://repo.spongepowered.org/repository/maven-public/")
+    }
+    dependencies {
+        classpath("org.cadixdev.gradle:gitpatcher") {
+            version {
+                branch = "feature/fix-gradle7"
+            }
+        }
+    }
+}
+
+apply(plugin="org.cadixdev.gitpatcher")
+
+extensions.configure(org.cadixdev.gradle.gitpatcher.PatchExtension::class) {
+    submodule = "snakeyaml-upstream"
+    target = file("snakeyaml")
+    patches = file("snakeyaml-patches")
+    recommendedFormatPatchArgs()
+}
+
 subprojects {
     apply(plugin = "java-library")
 
     group = "configurate.thirdparty"
     version = "version-from-submodule"
-
-    repositories {
-        mavenCentral()
-    }
 
     tasks.withType(JavaCompile::class) {
         options.encoding = "UTF-8"
@@ -22,39 +40,41 @@ subprojects {
 }
 
 project(":snakeyaml") {
-    val mavenPom = project.file("pom.xml")
-    val documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder()
-    val document = documentBuilder.parse(mavenPom)
-    val mavenProject = document.getElementsByTagName("project").item(0)
+    val mavenPom = project.file("../snakeyaml-upstream/pom.xml")
+    if (mavenPom.exists()) {
+        val documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+        val document = documentBuilder.parse(mavenPom)
+        val mavenProject = document.getElementsByTagName("project").item(0)
 
-    fun org.w3c.dom.NodeList.element(tagName: String): org.w3c.dom.Element? {
-        for (i in 0..this.length) {
-            val element = this.item(i)
-            if (element is org.w3c.dom.Element && element.tagName == tagName) {
-                return element
-            }
-        }
-        return null
-    }
-
-    dependencies {
-        val dependencies = mavenProject.childNodes.element("dependencies")!!.childNodes
-        for (i in 0..dependencies.length) {
-            val dep = dependencies.item(i)
-            if (dep is org.w3c.dom.Element && dep.tagName == "dependency") {
-                val children = dep.childNodes
-                val group = children.element("groupId")?.textContent
-                val artifact = children.element("artifactId")?.textContent
-                val version = children.element("version")?.textContent
-                val configuration = when (children.element("scope")?.textContent) {
-                    "test" -> "testImplementation"
-                    "compile" -> "implementation"
-                    "runtime" -> "runtime"
-                    "provided" -> "compileOnly"
-                    else -> null
+        fun org.w3c.dom.NodeList.element(tagName: String): org.w3c.dom.Element? {
+            for (i in 0..this.length) {
+                val element = this.item(i)
+                if (element is org.w3c.dom.Element && element.tagName == tagName) {
+                    return element
                 }
-                if (configuration != null) {
-                    configuration(group!!, artifact!!, version)
+            }
+            return null
+        }
+
+        dependencies {
+            val dependencies = mavenProject.childNodes.element("dependencies")!!.childNodes
+            for (i in 0..dependencies.length) {
+                val dep = dependencies.item(i)
+                if (dep is org.w3c.dom.Element && dep.tagName == "dependency") {
+                    val children = dep.childNodes
+                    val group = children.element("groupId")?.textContent
+                    val artifact = children.element("artifactId")?.textContent
+                    val version = children.element("version")?.textContent
+                    val configuration = when (children.element("scope")?.textContent) {
+                        "test" -> "testImplementation"
+                        "compile" -> "implementation"
+                        "runtime" -> "runtime"
+                        "provided" -> "compileOnly"
+                        else -> null
+                    }
+                    if (configuration != null) {
+                        configuration(group!!, artifact!!, version)
+                    }
                 }
             }
         }
@@ -62,6 +82,7 @@ project(":snakeyaml") {
 
     tasks.withType(JavaCompile::class) {
         options.release.set(7)
+        dependsOn(rootProject.tasks.named("applyPatches"))
     }
 
     tasks.named("test", Test::class) {
