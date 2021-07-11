@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  * A YAML 1.1/1.2 tag
  *
  * @apiNote Design based on §3.2.1.1 of the YAML 1.1 spec
- * @since 4.1.0
+ * @since 4.2.0
  */
 @AutoValue
 abstract class OldTag {

@@ -80,7 +80,7 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
      *
      * @since 4.1.0
      */
-    public static final RepresentationHint<OldTag> TAG = RepresentationHint.of("configurate:tag", OldTag.class);
+    public static final RepresentationHint<Tag> TAG = RepresentationHint.of("configurate:tag", Tag.class);
 
     /**
      * Whether comments will be enabled by default.

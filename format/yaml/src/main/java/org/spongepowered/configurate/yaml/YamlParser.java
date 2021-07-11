@@ -28,16 +28,21 @@ import org.yaml.snakeyaml.comments.CommentType;
 import org.yaml.snakeyaml.error.Mark;
 import org.yaml.snakeyaml.error.MarkedYAMLException;
 import org.yaml.snakeyaml.events.AliasEvent;
+import org.yaml.snakeyaml.events.CollectionEndEvent;
 import org.yaml.snakeyaml.events.CollectionStartEvent;
 import org.yaml.snakeyaml.events.CommentEvent;
 import org.yaml.snakeyaml.events.Event;
+import org.yaml.snakeyaml.events.MappingStartEvent;
 import org.yaml.snakeyaml.events.NodeEvent;
 import org.yaml.snakeyaml.events.ScalarEvent;
+import org.yaml.snakeyaml.events.SequenceStartEvent;
 import org.yaml.snakeyaml.parser.ParserImpl;
 import org.yaml.snakeyaml.reader.StreamReader;
 import org.yaml.snakeyaml.scanner.ScannerImpl;
 
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -175,6 +180,72 @@ final class YamlParser extends ParserImpl {
         }
         requireEvent(Event.ID.DocumentEnd);
     }
+
+    // take two
+
+    private void readDocument(final ConfigurationNode root) throws ConfigurateException {
+        // build a stack of nodes that need to be read
+        final Deque<Entry> stagedNodes = new ArrayDeque<>(5);
+        stagedNodes.push(new Entry().init(root));
+        try {
+            while (!peekEvent().is(Event.ID.DocumentEnd)) {
+                // consume events
+                final Event next = getEvent();
+                switch (next.getEventId()) {
+                    case Comment:
+                        // aggregate
+                        break;
+                    case Scalar:
+                        // handle scalar with current tag
+                        final ScalarEvent scalar = (ScalarEvent) next;
+                        final ConfigurationNode node = stagedNodes.pop().node.hint(YamlConfigurationLoader.SCALAR_STYLE, ScalarStyle.fromSnakeYaml(scalar.getScalarStyle()));
+                        node.raw(scalar.getValue()); // TODO: tags and value types
+                        break;
+                    case Alias:
+                        // set active node to
+                        final AliasEvent alias = (AliasEvent) next;
+                        break;
+                    case MappingStart:
+                        // push new state: pairs of keys/values
+                        final MappingStartEvent mapping = (MappingStartEvent) next;
+                        break;
+                    case SequenceStart:
+                        // push new state: values
+                        final SequenceStartEvent sequence = (SequenceStartEvent) next;
+                        break;
+                    case MappingEnd:
+                    case SequenceEnd:
+                        // pop state
+                        final CollectionEndEvent end = (CollectionEndEvent) next;
+                        stagedNodes.pop();
+                        break;
+                }
+            }
+        } catch (final ConfigurateException ex) {
+            final Entry head = stagedNodes.peekLast();
+            if (head != null) {
+                ex.initPath(head.node::path);
+            }
+        }
+
+    }
+
+    /**
+     * State tracking for deserialization
+     */
+    static class Entry {
+        private Tag resolvedTag;
+        private ConfigurationNode node;
+        private int requiredNodes;
+
+        Entry init(final ConfigurationNode node) {
+            this.node = node;
+            this.requiredNodes = 0;
+            return this;
+        }
+    }
+
+    // old bits
 
     void value(final ConfigurationNode node) throws ParsingException {
         this.value(node, true);

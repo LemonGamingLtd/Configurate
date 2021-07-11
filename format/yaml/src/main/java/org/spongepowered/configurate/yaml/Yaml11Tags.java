@@ -17,36 +17,53 @@
 package org.spongepowered.configurate.yaml;
 
 import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.util.UnmodifiableCollections;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.net.URI;
 import java.time.ZonedDateTime;
+import java.util.Base64;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
  * Standard types defined on the <a href="https://yaml.org/type/">yaml.org
  * tag repository</a>.
  *
- * @since 4.1.0
+ * @since 4.2.0
  */
 final class Yaml11Tags {
 
     private Yaml11Tags() {
     }
 
-    private static String yamlOrg(final String specific) {
-        return "tag:yaml.org,2002:" + specific;
+    private static URI yamlOrg(final String specific) {
+        return URI.create("tag:yaml.org,2002:" + specific);
     }
 
     /**
      * A binary data tag.
      *
      * @see <a href="https://yaml.org/type/binary.html">tag:yaml.org,2002:binary</a>
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final OldTag BINARY = OldTag.builder()
-            .uri(yamlOrg("binary"))
-            .nativeType(byte[].class)
-            .targetPattern(Pattern.compile("base64 TODO"))
-            .build();
+    public static final Tag.Scalar<byte[]> BINARY = new Tag.Scalar<byte[]>(
+        yamlOrg("binary"),
+        UnmodifiableCollections.toSet(byte[].class),
+        Pattern.compile("base64 TODO") // todo: can this be null, so tag is only supported explicitly
+    ) {
+
+        @Override
+        public byte[] fromString(final String input) {
+            return Base64.getDecoder().decode(input);
+        }
+
+        @Override
+        public String toString(final byte[] own) {
+            return Base64.getEncoder().encodeToString(own);
+        }
+    };
 
     /**
      * A boolean value.
@@ -55,46 +72,85 @@ final class Yaml11Tags {
      *     will only support true|false, we will treat those as the default
      *     output format.
      * @see <a href="https://yaml.org/type/bool.html">tag:yaml.org,2002:bool</a>
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final OldTag BOOL = OldTag.builder()
-            .uri(yamlOrg("bool"))
-            .nativeType(Boolean.class)
-            .targetPattern(Pattern.compile("y|Y|yes|Yes|YES|n|N|no|No|NO"
-                    + "|true|True|TRUE|false|False|FALSE"
-                    + "|on|On|ON|off|Off|OFF"))
-            .build();
+    public static final Tag.Scalar<Boolean> BOOL = new Tag.Scalar<Boolean>(
+        yamlOrg("bool"),
+        UnmodifiableCollections.toSet(Boolean.class),
+        Pattern.compile("y|Y|yes|Yes|YES|n|N|no|No|NO"
+            + "|true|True|TRUE|false|False|FALSE"
+            + "|on|On|ON|off|Off|OFF")
+    ) {
+        private final Set<String> TRUES = UnmodifiableCollections.toSet(
+            "y", "Y", "yes", "Yes", "YES",
+            "true", "True", "TRUE",
+            "on", "On", "ON"
+        );
+
+        @Override
+        public Boolean fromString(final String input) {
+            return TRUES.contains(input);
+        }
+
+        @Override
+        public String toString(final Boolean own) {
+            return own ? "true" : "false";
+        }
+    };
 
     /**
      * A floating-point number.
      *
      * @see <a href="https://yaml.org/type/float.html">tag:yaml.org,2002:float</a>
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final OldTag FLOAT = OldTag.builder()
-            .uri(yamlOrg("float"))
-            .nativeType(Double.class)
-            .targetPattern(Pattern.compile("[-+]?([0-9][0-9_]*)?\\.[0-9.]*([eE][-+][0-9]+)?" // base 10
-                    + "|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\\.[0-9]*" // base 60
-                    + "|[-+]?\\.(inf|Inf|INF)" // infinity
-                    + "|\\.(nan|NaN|NAN)")) // not a number
-            .build();
+    public static final Tag.Scalar<Number> FLOAT = new Tag.Scalar<Number>(
+        yamlOrg("float"),
+        UnmodifiableCollections.toSet(Float.class, Double.class, BigDecimal.class),
+        Pattern.compile("[-+]?([0-9][0-9_]*)?\\.[0-9.]*([eE][-+][0-9]+)?" // base 10
+            + "|[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\\.[0-9]*" // base 60
+            + "|[-+]?\\.(inf|Inf|INF)" // infinity
+            + "|\\.(nan|NaN|NAN)") // not a number
+    ) {
+
+        @Override
+        public Number fromString(final String input) {
+            return null;
+        }
+
+        @Override
+        public String toString(final Number own) {
+            return null;
+        }
+    };
 
     /**
      * An integer.
      *
      * @see <a href="https://yaml.org/type/int.html">tag:yaml.org,2002:int</a>
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final OldTag INT = OldTag.builder()
-            .uri(yamlOrg("int"))
-            .nativeType(Long.class)
-            .targetPattern(Pattern.compile("[-+]?0b[0-1_]+" // base 2
-                    + "|[-+]?0[0-7_]+" // base 8
-                    + "|[-+]?(0|[1-9][0-9_]*)" // base 10
-                    + "|[-+]?0x[0-9a-fA-F_]+" // base 16
-                    + "|[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+")) // base 60
-            .build();
+    public static final Tag.Scalar<Number> INT = new Tag.Scalar<Number>(
+        yamlOrg("int"),
+        UnmodifiableCollections.toSet(Byte.class, Short.class, Integer.class, Long.class, BigInteger.class),
+        Pattern.compile("[-+]?0b[0-1_]+" // base 2
+            + "|[-+]?0[0-7_]+" // base 8
+            + "|[-+]?(0|[1-9][0-9_]*)" // base 10
+            + "|[-+]?0x[0-9a-fA-F_]+" // base 16
+            + "|[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+") // base 60
+    ) {
+
+        // todo: wrong
+        @Override
+        public Number fromString(final String input) {
+            return Integer.parseInt(input);
+        }
+
+        @Override
+        public String toString(final Number own) {
+            return own.toString();
+        }
+    };
 
     /**
      * A mapping merge.
@@ -103,13 +159,27 @@ final class Yaml11Tags {
      * are fully implemented.</p>
      *
      * @see <a href="https://yaml.org/type/merge.html">tag:yaml.org,2002:merge</a>
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final OldTag MERGE = OldTag.builder()
-            .uri(yamlOrg("merge"))
-            .nativeType(ConfigurationNode.class)
-            .targetPattern(Pattern.compile("<<"))
-            .build();
+    public static final Tag.Scalar<?> MERGE = new Tag.Scalar<Object>(
+        yamlOrg("merge"),
+        UnmodifiableCollections.toSet(ConfigurationNode.class),
+        Pattern.compile("<<")
+    ) {
+
+        // TODO: this can only really be implemented with full reference support
+        // used as map key, where the next node will be a reference that should be merged in to this node
+
+        @Override
+        public Object fromString(final String input) {
+            return input.toString();
+        }
+
+        @Override
+        public String toString(final Object own) {
+            return own.toString();
+        }
+    };
 
     /**
      * The value {@code null}.
@@ -119,47 +189,78 @@ final class Yaml11Tags {
      * likely never be encountered in an in-memory representation.</p>
      *
      * @see <a href="https://yaml.org/type/null.html">tag:yaml.org,2002:null</a>
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final OldTag NULL = OldTag.builder()
-            .uri(yamlOrg("null"))
-            .nativeType(Void.class)
-            .targetPattern(Pattern.compile("~"
-                    + "|null|Null|NULL"
-                    + "|$"))
-            .build();
+    public static final Tag.Scalar<Void> NULL = new Tag.Scalar<Void>(
+        yamlOrg("null"),
+        UnmodifiableCollections.toSet(Void.class, void.class),
+        Pattern.compile("~"
+            + "|null|Null|NULL"
+            + "|$")
+    ) {
+
+        @Override
+        public Void fromString(final String input) {
+            return null;
+        }
+
+        @Override
+        public String toString(final Void own) {
+            return "null";
+        }
+    };
 
     /**
      * Any string.
      *
      * @see <a href="https://yaml.org/type/str.html">tag:yaml.org,2002:str</a>
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final OldTag STR = OldTag.builder()
-            .uri(yamlOrg("str"))
-            .nativeType(String.class)
-            .targetPattern(Pattern.compile(".+")) // empty scalar is NULL
-            .build();
+    public static final Tag.Scalar<String> STR = new Tag.Scalar<String>(
+        yamlOrg("str"),
+        UnmodifiableCollections.toSet(String.class),
+        Pattern.compile(".+") // empty scalar is NULL
+    ) {
+        @Override
+        public String fromString(final String input) {
+            return input;
+        }
+
+        @Override
+        public String toString(final String own) {
+            return own;
+        }
+    };
 
     /**
      * A timestamp, containing date, time, and timezone.
      *
      * @see <a href="https://yaml.org/type/timestamp.html">tag:yaml.org,2002:timestamp</a>
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final OldTag TIMESTAMP = OldTag.builder()
-            .uri(yamlOrg("timestamp"))
-            .nativeType(ZonedDateTime.class)
-            .targetPattern(Pattern.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}" // YYYY-MM-DD
-                    + "|[0-9]{4}" // YYYY
-                    + "-[0-9]{1,2}" // month
-                    + "-[0-9]{1,2}" // day
-                    + "([Tt]|[ \t]+)[0-9]{1,2}" // hour
-                    + ":[0-9]{1,2}" // minute
-                    + ":[0-9]{2}" // second
-                    + "(\\.[0-9]*)?" // fraction
-                    + "(([ \t]*)Z|[-+][0-9]{1,2}(:[0-9]{2})?)?")) // time zone
-            .build();
+    public static final Tag.Scalar<ZonedDateTime> TIMESTAMP = new Tag.Scalar<ZonedDateTime>(
+        yamlOrg("timestamp"),
+        UnmodifiableCollections.toSet(ZonedDateTime.class),
+        Pattern.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}" // YYYY-MM-DD
+            + "|[0-9]{4}" // YYYY
+            + "-[0-9]{1,2}" // month
+            + "-[0-9]{1,2}" // day
+            + "([Tt]|[ \t]+)[0-9]{1,2}" // hour
+            + ":[0-9]{1,2}" // minute
+            + ":[0-9]{2}" // second
+            + "(\\.[0-9]*)?" // fraction
+            + "(([ \t]*)Z|[-+][0-9]{1,2}(:[0-9]{2})?)?") // time zone
+    ) {
+        @Override
+        public ZonedDateTime fromString(final String input) {
+            return null;
+        }
+
+        @Override
+        public String toString(final ZonedDateTime own) {
+            return null;
+        }
+    };
 
     static final TagRepository REPOSITORY = TagRepository.of(
         OldTag.builder().uri("?").nativeType(Object.class).targetPattern(Pattern.compile(".+")).build(),
