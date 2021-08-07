@@ -9,6 +9,7 @@ pmd = "6.45.0"
 
 [libraries]
 # Shared
+assertJ = "org.assertj:assertj-core:3.+"
 autoValue = { module = "com.google.auto.value:auto-value", version.ref = "autoValue" }
 autoValue-annotations = { module = "com.google.auto.value:auto-value-annotations", version.ref = "autoValue" }
 errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
@@ -36,6 +37,13 @@ slf4j = "org.slf4j:slf4j-api:1.8.0-beta4" # Match version used in MC
 # Guice
 guice-compile = "com.google.inject:guice:4.1.0"
 guice-runtime = "com.google.inject:guice:5.0.1"
+
+# Groovy
+groovy = { module = "org.codehaus.groovy:groovy", version.ref = "groovy" }
+groovy-nio = { module = "org.codehaus.groovy:groovy-nio", version.ref = "groovy" }
+groovy-templates = { module = "org.codehaus.groovy:groovy-templates", version.ref = "groovy" }
+groovy-test = { module = "org.codehaus.groovy:groovy-test", version.ref = "groovy" }
+groovy-test-junit5 = { module = "org.codehaus.groovy:groovy-test-junit5", version.ref = "groovy" }
 
 # Formats
 gson = "com.google.code.gson:gson:2.8.0" # Fixed version, to avoid using API not present in older MC
@@ -65,6 +73,7 @@ aggregateJavadoc = "io.freefair.aggregate-javadoc-jar:6.4.3"
 detekt = "io.gitlab.arturbosch.detekt:1.20.0"
 dokka = "org.jetbrains.dokka:1.6.21"
 gitPublish = "org.ajoberstar.git-publish:3.0.1"
+ideaExt = "org.jetbrains.gradle.plugin.idea-ext:1.0.1"
 indra-common = { id = "net.kyori.indra", version.ref = "indra" }
 indra-sonatype = { id = "net.kyori.indra.publishing.sonatype", version.ref = "indra" }
 indra-git = { id = "net.kyori.indra.git", version.ref = "indra" }
