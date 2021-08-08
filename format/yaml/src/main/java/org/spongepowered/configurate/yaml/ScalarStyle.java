@@ -91,7 +91,11 @@ public enum ScalarStyle {
         this.snake = snake;
     }
 
-    static DumperOptions.ScalarStyle asSnakeYaml(final @Nullable ScalarStyle style, final ImplicitTuple implicity, final @Nullable ScalarStyle fallback) {
+    static DumperOptions.ScalarStyle asSnakeYaml(
+        final @Nullable ScalarStyle style,
+        final ImplicitTuple implicity,
+        final @Nullable ScalarStyle fallback
+    ) {
         // todo: allow customizing
         if (style == null) {
             if (implicity.canOmitTagInNonPlainScalar() && !implicity.canOmitTagInPlainScalar()) {

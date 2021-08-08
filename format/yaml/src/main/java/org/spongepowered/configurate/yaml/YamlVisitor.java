@@ -46,7 +46,12 @@ import java.util.regex.Pattern;
 final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void, ConfigurateException> {
 
     private static final Pattern COMMENT_SPLIT = Pattern.compile("\r?\n");
-    private static final CommentEvent WHITESPACE = new CommentEvent(CommentType.BLANK_LINE, YamlConfigurationLoader.CONFIGURATE_LINE_SEPARATOR, null, null);
+    private static final CommentEvent WHITESPACE = new CommentEvent(
+        CommentType.BLANK_LINE,
+        YamlConfigurationLoader.CONFIGURATE_LINE_SEPARATOR,
+        null,
+        null
+    );
     private static final CommentEvent COMMENT_BLANK_LINE = new CommentEvent(CommentType.BLOCK, "", null, null);
     static final StreamStartEvent STREAM_START = new StreamStartEvent(null, null);
     static final StreamEndEvent STREAM_END = new StreamEndEvent(null, null);
@@ -81,7 +86,7 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
                     // todo: try and avoid emitting a blank line when we're the first element of a mapping?
                     state.emit(WHITESPACE);
                 }
-                for (final String line : COMMENT_SPLIT.split(comment)) {
+                for (final String line : COMMENT_SPLIT.split(comment, -1)) {
                     if (line.isEmpty()) {
                         state.emit(COMMENT_BLANK_LINE);
                     } else {
@@ -135,7 +140,10 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
         final ImplicitTuple implicity = new ImplicitTuple(analysis.implicit(), analysis.resolved().equals(this.tags.stringTag()));
         final Tag actual = analysis.actual();
         if (!(actual instanceof Tag.Scalar<?>)) {
-            throw new ConfigurateException(node, "Tag '" + actual.tagUri() + "' is required to be a scalar tag, but was actually a " + actual.getClass());
+            throw new ConfigurateException(
+                node,
+                "Tag '" + actual.tagUri() + "' is required to be a scalar tag, but was actually a " + actual.getClass()
+            );
         }
 
         state.emit(new ScalarEvent(

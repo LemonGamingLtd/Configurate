@@ -41,7 +41,7 @@ import java.util.Set;
 /**
  * A loader for YAML 1.1 configurations.
  *
- * <h1>The YAML Format</h1>
+ * <h2>The YAML Format</h2>
  *
  * <p>YAML is an extremely flexible format for data serialization, designed to
  * be easy for humans to work with.</p>
@@ -56,7 +56,7 @@ import java.util.Set;
  * - {org: org.spongepowered, name: noise, version: 2.0.0}
  * }</pre>
  *
- * <h1>Usage</h1>
+ * <h2>Usage</h2>
  *
  * <p><strong>CAUTION:</strong>Comment support (added in 4.2.0) is currently
  * classified as <em>experimental</em>. This means it will not be enabled by
@@ -82,9 +82,9 @@ import java.util.Set;
  *     will override any types set in a {@link ConfigurationOptions}.</li>
  * </ul>
  *
- * <h1>Custom Tags</h1>
+ * <h2>Custom Tags</h2>
  *
- * <h1>Limitations</h1>
+ * <h2>Limitations</h2>
  *
  * <p>This loader bridges the YAML object model and representation lifecycle
  * with Configurate's own model. Because these models are rather different,
@@ -101,10 +101,10 @@ import java.util.Set;
  *     complex keys (since keys are not preserved as a node)</li>
  * </ul>
  *
- * @since 4.0.0
  * @see <a href="https://yaml.org/spec/1.1/">YAML 1.1 Spec</a>
  * @see <a href="https://yaml.org/spec/1.2/spec.html">YAML 1.2 Spec</a>
  * @see <a href="https://github.com/yaml/yaml-spec/tree/main/rfc">YAML Spec RFCs</a>
+ * @since 4.0.0
  */
 public final class YamlConfigurationLoader extends AbstractConfigurationLoader<CommentedConfigurationNode> {
 
@@ -156,7 +156,8 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
      * Whether comments will be enabled by default.
      *
      * <p>Comments will be introduced as an experimental feature, defaulting to
-     * {@code false} at first, but changed to {@code true} in a later release.</p>
+     * {@code false} at first, but changed to {@code true} in a
+     * later release.</p>
      */
     private static final boolean COMMENTS_DEFAULT = Boolean.parseBoolean(System.getProperty("configurate.yaml.commentsEnabled", "false"));
 
@@ -282,8 +283,8 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
          * Get whether comment handling is enabled.
          *
          * @return whether comment handling is enabled
-         * @since 4.1.0
          * @see #commentsEnabled(boolean) for details on comment handling
+         * @since 4.1.0
          */
         public boolean commentsEnabled() {
             return this.enableComments;

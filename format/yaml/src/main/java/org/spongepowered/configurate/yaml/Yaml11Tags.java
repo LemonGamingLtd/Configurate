@@ -84,7 +84,7 @@ final class Yaml11Tags {
             + "|true|True|TRUE|false|False|FALSE"
             + "|on|On|ON|off|Off|OFF")
     ) {
-        private final Set<String> TRUES = UnmodifiableCollections.toSet(
+        private final Set<String> trues = UnmodifiableCollections.toSet(
             "y", "Y", "yes", "Yes", "YES",
             "true", "True", "TRUE",
             "on", "On", "ON"
@@ -92,7 +92,7 @@ final class Yaml11Tags {
 
         @Override
         public Boolean fromString(final String input) {
-            return TRUES.contains(input);
+            return this.trues.contains(input);
         }
 
         @Override

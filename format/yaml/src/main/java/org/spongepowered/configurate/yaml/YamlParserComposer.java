@@ -114,7 +114,13 @@ final class YamlParserComposer extends ParserImpl {
                 }
             }
         } catch (final MarkedYAMLException ex) {
-            throw new ParsingException(active.node, ex.getProblemMark().getLine(), ex.getProblemMark().getColumn(), ex.getProblemMark().get_snippet(), ex.getProblem());
+            throw new ParsingException(
+                active.node,
+                ex.getProblemMark().getLine(),
+                ex.getProblemMark().getColumn(),
+                ex.getProblemMark().get_snippet(),
+                ex.getProblem()
+            );
         } catch (final ConfigurateException ex) {
             ex.initPath(active.node::path);
             throw ex;
@@ -209,7 +215,8 @@ final class YamlParserComposer extends ParserImpl {
 
     Frame peekFrame(final int depth) {
         if (depth < 0 || depth > this.framePointer) {
-            throw new IllegalStateException("Tried to peek beyond bounds of state stack. requested depth: " + depth + ", actual depth: " + this.framePointer);
+            throw new IllegalStateException("Tried to peek beyond bounds of state stack. requested depth: " + depth
+                + ", actual depth: " + this.framePointer);
         }
 
         return this.frames[this.framePointer - depth];
@@ -228,11 +235,14 @@ final class YamlParserComposer extends ParserImpl {
         @MonotonicNonNull ComposerState state;
 
         /**
-         * The resolved tag. May be used by child states to perform their own tag resolution
+         * The resolved tag.
+         *
+         * <p>May be used by child states to perform their own
+         * tag resolution.</p>
          */
         @Nullable Tag resolvedTag;
         ConfigurationNode node;
-        int flags = 0;
+        int flags;
 
         void init(final ComposerState state, final Frame parent) {
             this.state = state;
@@ -327,7 +337,6 @@ final class YamlParserComposer extends ParserImpl {
         }, Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.NONNULL), false);
     }
 
-
     static ParsingException makeError(
         final Mark mark,
         final @Nullable String message,
@@ -344,8 +353,6 @@ final class YamlParserComposer extends ParserImpl {
      *
      * <p>Frames manage their own event consumption, and can swap to another
      * state within the same frame, or push/pop additional frames.</p>
-     *
-     * <p></p>
      */
     interface ComposerState {
 
@@ -358,7 +365,7 @@ final class YamlParserComposer extends ParserImpl {
          * @throws ParsingException to indicate an error
          * @see Frame#makeError(Mark, String, Throwable)
          */
-        @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException;
+        @Nullable Frame accept(Frame head, YamlParserComposer self) throws ParsingException;
     }
 
     /**
@@ -367,7 +374,7 @@ final class YamlParserComposer extends ParserImpl {
      * <p>Expects a {@link Event.ID#DocumentStart} event, and will push a frame
      * with Value state.</p>
      */
-    static class DocumentStart implements ComposerState {
+    static final class DocumentStart implements ComposerState {
 
         static final DocumentStart INSTANCE = new DocumentStart();
 
@@ -396,7 +403,7 @@ final class YamlParserComposer extends ParserImpl {
      * <p>Expects a {@link Event.ID#DocumentEnd} event, and will process any
      * trailing comments.</p>
      */
-    static class DocumentEnd implements ComposerState {
+    static final class DocumentEnd implements ComposerState {
 
         static final DocumentEnd INSTANCE = new DocumentEnd();
 
@@ -415,7 +422,7 @@ final class YamlParserComposer extends ParserImpl {
      *
      * <p>This state performs pre-processing of values as well.</p>
      */
-    static class Value implements ComposerState {
+    static final class Value implements ComposerState {
 
         static final Value INSTANCE = new Value();
 
@@ -458,7 +465,7 @@ final class YamlParserComposer extends ParserImpl {
 
     }
 
-    static class Scalar implements ComposerState {
+    static final class Scalar implements ComposerState {
 
         static final Scalar INSTANCE = new Scalar();
 
@@ -480,7 +487,11 @@ final class YamlParserComposer extends ParserImpl {
                     tag = Tag.Scalar.ofUnknown(tagUri);
                     head.node.raw(scalar.getValue()); // TODO: tags and value types
                 } else if (!(tag instanceof Tag.Scalar<?>)) {
-                    throw head.makeError(scalar.getStartMark(), "Declared tag for node was expected to handle a Scalar, but actually is a " + tag.getClass(), null);
+                    throw head.makeError(
+                        scalar.getStartMark(),
+                        "Declared tag for node was expected to handle a Scalar, but actually is a " + tag.getClass(),
+                        null
+                    );
                 } else {
                     head.node.raw(((Tag.Scalar<?>) tag).fromString(scalar.getValue()));
                 }
@@ -494,13 +505,14 @@ final class YamlParserComposer extends ParserImpl {
                 head.node.raw(((Tag.Scalar<?>) tag).fromString(scalar.getValue()));
             }
             head.node.hint(YamlConfigurationLoader.TAG, tag);
+            head.resolvedTag = tag;
             // pop state
             return null;
         }
 
     }
 
-    static class MappingStart implements ComposerState {
+    static final class MappingStart implements ComposerState {
 
         static final MappingStart INSTANCE = new MappingStart();
 
@@ -508,7 +520,7 @@ final class YamlParserComposer extends ParserImpl {
         }
 
         @Override
-        public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
+        public Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
             final MappingStartEvent event = self.requireEvent(Event.ID.MappingStart, MappingStartEvent.class);
             if (event.isFlow() || self.peekEvent().is(Event.ID.Comment)) {
                 self.applyComments(head.node);
@@ -518,7 +530,7 @@ final class YamlParserComposer extends ParserImpl {
         }
     }
 
-    static class MappingKeyOrEnd implements ComposerState {
+    static final class MappingKeyOrEnd implements ComposerState {
 
         static final MappingKeyOrEnd INSTANCE = new MappingKeyOrEnd();
 
@@ -544,7 +556,7 @@ final class YamlParserComposer extends ParserImpl {
 
     }
 
-    static class MappingValue implements ComposerState {
+    static final class MappingValue implements ComposerState {
 
         static final MappingValue INSTANCE = new MappingValue();
 
@@ -579,7 +591,7 @@ final class YamlParserComposer extends ParserImpl {
 
     }
 
-    static class SequenceStart implements ComposerState {
+    static final class SequenceStart implements ComposerState {
 
         static final SequenceStart INSTANCE = new SequenceStart();
 
@@ -598,7 +610,7 @@ final class YamlParserComposer extends ParserImpl {
 
     }
 
-    static class SequenceEntryOrEnd implements ComposerState {
+    static final class SequenceEntryOrEnd implements ComposerState {
 
         static final SequenceEntryOrEnd INSTANCE = new SequenceEntryOrEnd();
 
@@ -622,7 +634,7 @@ final class YamlParserComposer extends ParserImpl {
 
     }
 
-    static class Alias implements ComposerState {
+    static final class Alias implements ComposerState {
 
         static final Alias INSTANCE = new Alias();
 

@@ -322,7 +322,6 @@ final class TagRepository {
             return this;
         }
 
-
         TagRepository build() {
             if (this.unresolvedTag == null) {
                 throw new IllegalArgumentException("Unresolved tag not set");

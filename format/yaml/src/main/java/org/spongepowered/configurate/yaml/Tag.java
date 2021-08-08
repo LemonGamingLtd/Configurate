@@ -23,10 +23,12 @@ import org.spongepowered.configurate.util.UnmodifiableCollections;
 
 import java.net.URI;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 class Tag {
+
     private final URI tagUri;
     private final Set<Class<?>> supportedTypes;
 
@@ -43,12 +45,13 @@ class Tag {
         return this.supportedTypes;
     }
 
-    static abstract class Scalar<V> extends Tag {
+    abstract static class Scalar<V> extends Tag {
+
         private final @Nullable Pattern pattern;
 
         // for unregistered tags on scalars
-        static Scalar<String> ofUnknown(final URI tagURi) {
-            return new Scalar<String>(tagURi, Collections.emptySet(), null) {
+        static Scalar<String> ofUnknown(final URI tagUri) {
+            return new Scalar<String>(tagUri, Collections.emptySet(), null) {
                 @Override
                 public String fromString(final String input) {
                     return input;
@@ -69,7 +72,8 @@ class Tag {
         /**
          * Pattern to use to detect this tag.
          *
-         * <p>May be {@code null} if this tag cannot be used as an implicit tag.</p>
+         * <p>May be {@code null} if this tag cannot be used as an
+         * implicit tag.</p>
          *
          * @return the detection pattern
          */
@@ -77,9 +81,9 @@ class Tag {
             return this.pattern;
         }
 
-        public abstract V fromString(final String input) throws ParsingException;
+        public abstract V fromString(String input) throws ParsingException;
 
-        public abstract String toString(final V own) throws ConfigurateException;
+        public abstract String toString(V own) throws ConfigurateException;
 
     }
 
@@ -105,4 +109,10 @@ class Tag {
         return that instanceof Tag
             && ((Tag) that).tagUri().equals(this.tagUri);
     }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.tagUri);
+    }
+
 }
