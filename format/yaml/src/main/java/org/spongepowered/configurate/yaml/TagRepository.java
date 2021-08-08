@@ -16,18 +16,22 @@
  */
 package org.spongepowered.configurate.yaml;
 
-import static io.leangen.geantyref.GenericTypeReflector.erase;
 import static java.util.Objects.requireNonNull;
 
 import com.google.auto.value.AutoValue;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.util.UnmodifiableCollections;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * A collection of tags that are understood when reading a document.
@@ -36,56 +40,27 @@ import java.util.Objects;
  */
 final class TagRepository {
 
-    private final Tag unresolvedTag;
     // fallback tag for each node type
-    private final Tag stringTag;
-    private final Tag sequenceTag;
-    private final Tag mappingTag;
-    private final List<Tag> tags;
-    private final Map<Class<?>, Tag> byErasedType;
-    private final Map<URI, Tag> byName;
+    final Tag unresolvedTag;
+    final Tag.Scalar<String> stringTag;
+    final Tag.Sequence sequenceTag;
+    final Tag.Mapping mappingTag;
+    final List<Tag> tags;
+    final Map<Class<?>, Tag> byErasedType;
+    final Map<URI, Tag> byName;
 
-    /**
-     * Create a new tag repository.
-     *
-     * @param unresolved a tag to assign to nodes whose value could not
-     *     be resolved
-     * @param tags known tags
-     * @return new tag repository
-     * @since 4.2.0
-     */
-    public static TagRepository of(final Tag unresolved, final List<Tag> tags) {
-        return new TagRepository(requireNonNull(unresolved, "unresolved"), UnmodifiableCollections.copyOf(tags));
+    TagRepository(final Builder builder) {
+        this.unresolvedTag = builder.unresolvedTag;
+        this.stringTag = builder.stringTag;
+        this.sequenceTag = builder.sequenceTag;
+        this.mappingTag = builder.mappingTag;
+        this.tags = UnmodifiableCollections.copyOf(builder.otherTags);
+        this.byErasedType = UnmodifiableCollections.copyOf(builder.byErasedType);
+        this.byName = UnmodifiableCollections.copyOf(builder.byName);
     }
 
-    /**
-     * Create a new tag repository.
-     *
-     * @param unresolved a tag to assign to nodes whose value could not
-     *     be resolved
-     * @param tags known tags
-     * @return a new tag repository
-     * @since 4.2.0
-     */
-    public static TagRepository of(final Tag unresolved, final Tag... tags) {
-        return new TagRepository(requireNonNull(unresolved, "unresolved"), UnmodifiableCollections.toList(tags));
-    }
-
-    TagRepository(final Tag unresolved, final List<Tag> tags) {
-        this.unresolvedTag = unresolved;
-        this.tags = tags;
-        this.byErasedType = UnmodifiableCollections.buildMap(map -> {
-            for (final Tag tag : this.tags) {
-                for (final Class<?> clazz : tag.supportedTypes()) {
-                    map.put(clazz, tag);
-                }
-            }
-        });
-        this.byName = UnmodifiableCollections.buildMap(map -> {
-            for (final Tag tag : this.tags) {
-                map.put(tag.tagUri(), tag);
-            }
-        });
+    static TagRepository.Builder builder() {
+        return new Builder();
     }
 
     /**
@@ -95,10 +70,13 @@ final class TagRepository {
      * @return the first matching tag
      * @since 4.2.0
      */
-    public @Nullable Tag forInput(final String scalar) {
+    public Tag.@Nullable Scalar<?> forInput(final String scalar) {
         for (final Tag tag : this.tags) {
-            if (tag instanceof Tag.Scalar && ((Tag.Scalar) tag).pattern().matcher(scalar).matches()) {
-                return tag;
+            if (tag instanceof Tag.Scalar) {
+                final @Nullable Pattern pattern = ((Tag.Scalar<?>) tag).pattern();
+                if (pattern != null && pattern.matcher(scalar).matches()) {
+                    return (Tag.Scalar<?>) tag;
+                }
             }
         }
 
@@ -134,21 +112,54 @@ final class TagRepository {
      * @return a calculated tag
      * @since 4.2.0
      */
-    public AnalyzedTag analyze(final ConfigurationNode node) {
+    AnalyzedTag analyze(final ConfigurationNode node) throws ConfigurateException {
         final @Nullable Tag explicit = node.hint(YamlConfigurationLoader.TAG);
         final @Nullable Tag calculated;
+        boolean isUnambiguous;
         if (node.isMap()) {
             calculated = this.mappingTag;
+            isUnambiguous = true;
         } else if (node.isList()) {
             calculated = this.sequenceTag;
+            isUnambiguous = true;
         } else if (node.isNull()) {
             calculated = this.byType(void.class);
+            isUnambiguous = true;
         } else {
-            calculated = this.byType(node.rawScalar().getClass());
+            final Object rawScalar = node.rawScalar();
+            calculated = this.byType(rawScalar.getClass());
+            isUnambiguous = true;
+            if (calculated != null && calculated instanceof Tag.Scalar<?>) {
+                final String serialized = ((Tag.Scalar) calculated).toString(rawScalar);
+                for (final Tag tag : this.tags) {
+                    if (tag != calculated && tag instanceof Tag.Scalar<?> && ((Tag.Scalar<?>) tag).pattern() != null) {
+                        if (!tag.equals(this.stringTag) && ((Tag.Scalar<?>) tag).pattern().matcher(serialized).matches()) {
+                            isUnambiguous = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
         }
-        return AnalyzedTag.of(explicit == null ? this.unresolvedTag : explicit, calculated);
+        return AnalyzedTag.of(calculated == null ? this.unresolvedTag : calculated, explicit, isUnambiguous);
     }
 
+    public Tag.Scalar<String> stringTag() {
+        return this.stringTag;
+    }
+
+    public Tag.Sequence sequenceTag() {
+        return this.sequenceTag;
+    }
+
+    public Tag.Mapping mappingTag() {
+        return this.mappingTag;
+    }
+
+    public TagRepository.Builder toBuilder() {
+        return new Builder(this);
+    }
 
     /**
      * A combination of resolved tag, and whether the tag is the same as the tag
@@ -157,7 +168,7 @@ final class TagRepository {
      * @since 4.2.0
      */
     @AutoValue
-    public abstract static class AnalyzedTag {
+    abstract static class AnalyzedTag {
 
         /**
          * Create a new resolved tag.
@@ -167,8 +178,8 @@ final class TagRepository {
          * @return the resolved tag
          * @since 4.2.0
          */
-        static AnalyzedTag of(final Tag resolved, final @Nullable Tag specified) {
-            return new AutoValue_TagRepository_AnalyzedTag(resolved, specified);
+        static AnalyzedTag of(final Tag resolved, final @Nullable Tag specified, final boolean defaultForType) {
+            return new AutoValue_TagRepository_AnalyzedTag(resolved, specified, defaultForType);
         }
 
         AnalyzedTag() {
@@ -183,7 +194,7 @@ final class TagRepository {
          * @return the calculated tag
          * @since 4.2.0
          */
-        public abstract OldTag resolved();
+        public abstract Tag resolved();
 
         /**
          * Get the manually specified tag for this node.
@@ -191,7 +202,28 @@ final class TagRepository {
          * @return the specified tag
          * @since 4.2.0
          */
-        public abstract @Nullable OldTag specified();
+        public abstract @Nullable Tag specified();
+
+        /**
+         * Get whether this node's serialized scalar value unambiguously matched
+         * a certain tag.
+         *
+         * @return whether the calculated tag unambiguously matches
+         * @since 4.2.0
+         */
+        abstract boolean isUnambiguous();
+
+        /**
+         * Get the actual tag applicable to the analyzed node.
+         *
+         * <p>If a tag is explicitly specified, that tag will be returned.
+         * Otherwise, the specified tag will be used.</p>
+         *
+         * @return the actual tag
+         */
+        public final Tag actual() {
+            return this.specified() == null ? this.resolved() : this.specified();
+        }
 
         /**
          * Get whether the provided tag is an implicit tag or not.
@@ -203,7 +235,100 @@ final class TagRepository {
          * @since 4.2.0
          */
         public final boolean implicit() {
-            return this.specified() == null || Objects.equals(this.resolved(), this.specified());
+            return this.specified() == null ? this.isUnambiguous() : Objects.equals(this.resolved(), this.specified());
+        }
+
+    }
+
+    static final class Builder {
+        private @MonotonicNonNull Tag unresolvedTag;
+        private Tag.@MonotonicNonNull Scalar<String> stringTag;
+        private Tag.@MonotonicNonNull Sequence sequenceTag;
+        private Tag.@MonotonicNonNull Mapping mappingTag;
+        private final List<Tag> otherTags = new ArrayList<>();
+        private final Map<Class<?>, Tag> byErasedType = new HashMap<>();
+        private final Map<URI, Tag> byName = new HashMap<>();
+
+        Builder() {
+        }
+
+        Builder(final TagRepository existing) {
+            this.unresolvedTag = existing.unresolvedTag;
+            this.stringTag = existing.stringTag;
+            this.sequenceTag = existing.sequenceTag;
+            this.mappingTag = existing.mappingTag;
+            this.otherTags.addAll(existing.tags);
+            this.byErasedType.putAll(existing.byErasedType);
+            this.byName.putAll(existing.byName);
+        }
+
+        Builder unresolvedTag(final Tag unresolvedTag) {
+            // if (this.unresolvedTag != null)
+            this.addTag0(this.unresolvedTag = requireNonNull(unresolvedTag, "unresolved"));
+            return this;
+        }
+
+        Builder stringTag(final Tag.Scalar<String> string) {
+            this.addTag0(this.stringTag = requireNonNull(string, "string"));
+            return this;
+        }
+
+        Builder sequenceTag(final Tag.Sequence sequence) {
+            this.addTag0(this.sequenceTag = requireNonNull(sequence, "sequence"));
+            return this;
+        }
+
+        Builder mappingTag(final Tag.Mapping mapping) {
+            this.addTag0(this.mappingTag = requireNonNull(mapping, "mapping"));
+            return this;
+        }
+
+        /**
+         * Add a tag to this repository.
+         *
+         * <p>This must not receive any tag that is already the string,
+         * mapping, or sequence tags. If trying to register a tag that shares a
+         * URL or supported types with an already-registered tag, this operation
+         * will fail, unless that same tag instance is the one registered.</p>
+         *
+         * @param tag the tag to register
+         * @return this builder
+         * @since 4.2.0
+         */
+        Builder addTag(final Tag tag) {
+            requireNonNull(tag, "tag");
+            if (tag.equals(this.mappingTag) || tag.equals(this.sequenceTag) || tag.equals(this.stringTag) || tag.equals(this.unresolvedTag)) {
+                throw new IllegalArgumentException("Tag " + tag
+                    + " was already registered as one of the mapping, sequence, string, or unresolved tags!");
+            }
+            return this.addTag0(tag);
+        }
+
+        private Builder addTag0(final Tag tag) {
+            for (final Class<?> clazz : tag.supportedTypes()) {
+                this.byErasedType.put(clazz, tag);
+            }
+            this.byName.put(tag.tagUri(), tag);
+            this.otherTags.add(tag);
+            return this;
+        }
+
+
+        TagRepository build() {
+            if (this.unresolvedTag == null) {
+                throw new IllegalArgumentException("Unresolved tag not set");
+            }
+            if (this.stringTag == null) {
+                throw new IllegalArgumentException("String tag not set");
+            }
+            if (this.mappingTag == null) {
+                throw new IllegalArgumentException("Mapping tag not set");
+            }
+            if (this.sequenceTag == null) {
+                throw new IllegalArgumentException("Sequence tag not set");
+            }
+
+            return new TagRepository(this);
         }
 
     }

@@ -18,6 +18,7 @@ package org.spongepowered.configurate.yaml;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.events.ImplicitTuple;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -32,7 +33,7 @@ public enum ScalarStyle {
     /**
      * A double-quoted string.
      *
-     * <p><pre>"hello world"</pre></p>
+     * <pre>"hello world"</pre>
      *
      * @since 4.2.0
      */
@@ -41,7 +42,7 @@ public enum ScalarStyle {
     /**
      * A single-quoted string.
      *
-     * <p><pre>'hello world'</pre></p>
+     * <pre>'hello world'</pre>
      *
      * @since 4.2.0
      */
@@ -90,8 +91,17 @@ public enum ScalarStyle {
         this.snake = snake;
     }
 
-    static DumperOptions.ScalarStyle asSnakeYaml(final @Nullable ScalarStyle style) {
-        return style == null ? DumperOptions.ScalarStyle.PLAIN : style.snake;
+    static DumperOptions.ScalarStyle asSnakeYaml(final @Nullable ScalarStyle style, final ImplicitTuple implicity, final @Nullable ScalarStyle fallback) {
+        // todo: allow customizing
+        if (style == null) {
+            if (implicity.canOmitTagInNonPlainScalar() && !implicity.canOmitTagInPlainScalar()) {
+                return fallback != null && fallback != ScalarStyle.UNQUOTED ? fallback.snake : DumperOptions.ScalarStyle.DOUBLE_QUOTED;
+            } else {
+                return fallback != null ? fallback.snake : DumperOptions.ScalarStyle.PLAIN;
+            }
+        } else {
+            return style.snake;
+        }
     }
 
     static ScalarStyle fromSnakeYaml(final DumperOptions.ScalarStyle style) {

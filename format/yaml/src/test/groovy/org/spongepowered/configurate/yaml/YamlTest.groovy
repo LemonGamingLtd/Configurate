@@ -25,7 +25,6 @@ import org.yaml.snakeyaml.events.Event
 import org.yaml.snakeyaml.parser.ParserImpl
 import org.yaml.snakeyaml.reader.StreamReader
 import org.yaml.snakeyaml.scanner.ScannerImpl
-import org.yaml.snakeyaml.tokens.Token
 
 import java.nio.charset.StandardCharsets
 
@@ -41,7 +40,7 @@ interface YamlTest {
             System.out.println(dumper.getEvent())
         } while (!dumper.checkEvent(Event.ID.StreamEnd))
 
-        final YamlParser parser = new YamlParser(new StreamReader(input), Yaml11Tags.REPOSITORY)
+        final YamlParserComposer parser = new YamlParserComposer(new StreamReader(input), Yaml11Tags.REPOSITORY, true)
         final CommentedConfigurationNode result = CommentedConfigurationNode.root()
         try {
             parser.singleDocumentStream(result)
@@ -66,7 +65,7 @@ interface YamlTest {
         assertNotNull(url, "Expected resource is missing")
         try {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), StandardCharsets.UTF_8))) {
-                final YamlParser parser = new YamlParser(new StreamReader(reader), Yaml11Tags.REPOSITORY)
+                final YamlParserComposer parser = new YamlParserComposer(new StreamReader(reader), Yaml11Tags.REPOSITORY, true)
                 final CommentedConfigurationNode result = CommentedConfigurationNode.root()
                 parser.singleDocumentStream(result)
                 return result
@@ -87,6 +86,7 @@ interface YamlTest {
             YamlConfigurationLoader.builder()
                     .sink { new BufferedWriter(writer) }
                     .nodeStyle(preferredStyle)
+                    .commentsEnabled(true)
                     .build().save(input)
         } catch (IOException e) {
             fail(e)

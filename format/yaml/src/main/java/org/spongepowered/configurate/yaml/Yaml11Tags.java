@@ -17,6 +17,7 @@
 package org.spongepowered.configurate.yaml;
 
 import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.loader.ParsingException;
 import org.spongepowered.configurate.util.UnmodifiableCollections;
 
 import java.math.BigDecimal;
@@ -24,6 +25,8 @@ import java.math.BigInteger;
 import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -51,7 +54,7 @@ final class Yaml11Tags {
     public static final Tag.Scalar<byte[]> BINARY = new Tag.Scalar<byte[]>(
         yamlOrg("binary"),
         UnmodifiableCollections.toSet(byte[].class),
-        Pattern.compile("base64 TODO") // todo: can this be null, so tag is only supported explicitly
+        null // base64 is not distinguishable from a normal string, require the tag to be provided explicitly
     ) {
 
         @Override
@@ -94,6 +97,7 @@ final class Yaml11Tags {
 
         @Override
         public String toString(final Boolean own) {
+            // YAML 1.2 is a lot more strict. Only emit the standard boolean values for forwards compatibility
             return own ? "true" : "false";
         }
     };
@@ -115,12 +119,12 @@ final class Yaml11Tags {
 
         @Override
         public Number fromString(final String input) {
-            return null;
+            return Double.parseDouble(input);
         }
 
         @Override
         public String toString(final Number own) {
-            return null;
+            return own.toString();
         }
     };
 
@@ -143,11 +147,25 @@ final class Yaml11Tags {
         // todo: wrong
         @Override
         public Number fromString(final String input) {
-            return Integer.parseInt(input);
+            // handle leading +/-
+            // if literal '0': return int
+            // handle 0/0x/0b prefixes
+            try {
+                final long ret = Long.parseLong(input);
+                if (ret >= Integer.MIN_VALUE && ret <= Integer.MAX_VALUE) {
+                    return (int) ret;
+                } else {
+                    return ret;
+                }
+            } catch (final NumberFormatException ex) {
+                return new BigInteger(input);
+            }
         }
 
         @Override
         public String toString(final Number own) {
+            // emit only number formats represented in yaml 1.2 core schema: base 10 or 16
+            // todo: have a 'compatibility mode' that can be disabled to produce output that is valid yaml 1.1 but not valid 1.2?
             return own.toString();
         }
     };
@@ -171,8 +189,8 @@ final class Yaml11Tags {
         // used as map key, where the next node will be a reference that should be merged in to this node
 
         @Override
-        public Object fromString(final String input) {
-            return input.toString();
+        public Object fromString(final String input) throws ParsingException {
+            throw new ParsingException(ParsingException.UNKNOWN_POS, ParsingException.UNKNOWN_POS, null, "Merge keys are not yet implemented", null);
         }
 
         @Override
@@ -253,25 +271,43 @@ final class Yaml11Tags {
     ) {
         @Override
         public ZonedDateTime fromString(final String input) {
-            return null;
+            throw new UnsupportedOperationException("not yet implemented");
         }
 
         @Override
         public String toString(final ZonedDateTime own) {
-            return null;
+            throw new UnsupportedOperationException("not yet implemented");
         }
     };
 
-    static final TagRepository REPOSITORY = TagRepository.of(
-        OldTag.builder().uri("?").nativeType(Object.class).targetPattern(Pattern.compile(".+")).build(),
-        BINARY,
-        BOOL,
-        INT,
-        FLOAT,
-        MERGE,
-        NULL,
-        STR,
-        TIMESTAMP
-    );
+    /**
+     * A mapping.
+     *
+     * @see <a href="https://yaml.org/type/map.html">tag:yaml.org,2002:map</a>
+     * @since 4.2.0
+     */
+    public static final Tag.Mapping MAP = new Tag.Mapping(yamlOrg("map"), UnmodifiableCollections.toSet(Map.class));
+
+    /**
+     * A sequence.
+     *
+     * @see <a href="https://yaml.org/type/seq.html">tag:yaml.org,2002:seq</a>
+     * @since 4.2.0
+     */
+    public static final Tag.Sequence SEQ = new Tag.Sequence(yamlOrg("seq"), UnmodifiableCollections.toSet(List.class, Set.class));
+
+    static final TagRepository REPOSITORY = TagRepository.builder()
+        .unresolvedTag(new Tag(URI.create("?"), UnmodifiableCollections.toSet(Object.class)) {})
+        .stringTag(STR)
+        .mappingTag(MAP)
+        .sequenceTag(SEQ)
+        .addTag(BINARY)
+        .addTag(BOOL)
+        .addTag(INT)
+        .addTag(FLOAT)
+        .addTag(NULL)
+        .addTag(MERGE)
+        .addTag(TIMESTAMP)
+        .build();
 
 }

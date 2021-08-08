@@ -27,10 +27,10 @@ class CommentTest implements YamlTest {
 
     @Test
     void testLoadScalarComment() {
-        final CommentedConfigurationNode node = parseString(normalize("""
+        final CommentedConfigurationNode node = parseString normalize("""\
             # Hello world
             "i'm a string"
-            """))
+            """)
 
         assertEquals("Hello world", node.comment())
         assertEquals("i'm a string", node.raw())
@@ -38,11 +38,11 @@ class CommentTest implements YamlTest {
 
     @Test
     void testLoadBlockMappingComment() {
-        final CommentedConfigurationNode node = parseString(normalize("""
+        final CommentedConfigurationNode node = parseString normalize("""\
             test:
                 # meow
                 cat: purrs
-            """))
+            """)
 
         assertEquals("purrs", node.node("test", "cat").raw())
         assertEquals("meow", node.node("test", "cat").comment())
@@ -50,7 +50,7 @@ class CommentTest implements YamlTest {
 
     @Test
     void testLoadBlockScalarSequenceComment() {
-        final CommentedConfigurationNode test = parseString(normalize("""
+        final CommentedConfigurationNode test = parseString(normalize("""\
             - first
             # i matter less
             - second
@@ -59,21 +59,21 @@ class CommentTest implements YamlTest {
             - fourth
             """))
 
-        assertNull(test[0].comment())
-        assertEquals("i matter less", test[1].comment())
-        assertEquals("we skipped one", test[3].comment())
+        assertNull(test.node(0).comment())
+        assertEquals("i matter less", test.node(1).comment())
+        assertEquals("we skipped one", test.node(3).comment())
     }
 
     @Test
     void testLoadScalarCommentsInBlockMapping() {
-        final CommentedConfigurationNode test = parseString("""
+        final CommentedConfigurationNode test = parseString """\
             blah:
             # beginning sequence
             - # first on map entry
               test: hello
             - # on second mapping
               test2: goodbye
-            """.stripIndent(true))
+            """.stripIndent(true)
 
         final CommentedConfigurationNode child = test.node("blah", 0)
         assertFalse(child.virtual())
@@ -87,7 +87,7 @@ class CommentTest implements YamlTest {
 
     @Test
     void testLoadCommentInFlowMapping() {
-        final CommentedConfigurationNode test = parseString(normalize("""
+        final CommentedConfigurationNode test = parseString(normalize("""\
             {
                 # hello
                 test: value,
@@ -104,7 +104,7 @@ class CommentTest implements YamlTest {
 
     @Test
     void testLoadCommentInFlowSequence() {
-        final CommentedConfigurationNode test = parseString(normalize("""
+        final CommentedConfigurationNode test = parseString(normalize("""\
             # on list
             [
                 # first
@@ -123,7 +123,7 @@ class CommentTest implements YamlTest {
     void testLoadMixedStructure() {
         final CommentedConfigurationNode test = parseResource(getClass().getResource("comments-complex.yml"))
 
-        assertEquals("very mapping", test["core", "users", 0, "second"].comment())
+        assertEquals("very mapping", test.node("core", "users", 0, "second").comment())
     }
 
     @Test
@@ -132,7 +132,7 @@ class CommentTest implements YamlTest {
                 .raw("test")
                 .comment("i have a comment")
 
-        assertEquals(normalize("""
+        assertEquals(normalize("""\
         # i have a comment
         test"""), dump(node).trim())
     }
@@ -146,7 +146,7 @@ class CommentTest implements YamlTest {
         }
 
         assertEquals(
-            normalize("""
+            normalize("""\
                 # I'm first
                 a: Hello
                 b:
@@ -169,7 +169,7 @@ class CommentTest implements YamlTest {
             }
         }
 
-        final def expected = normalize("""
+        final def expected = normalize("""\
         - Hello
         - World
         -   one: aaa
@@ -186,7 +186,7 @@ class CommentTest implements YamlTest {
             appendListNode().set("yellow").comment("What? a THIRD colour???")
         }
 
-        final def expected = normalize("""
+        final def expected = normalize("""\
         # A colour
         - red
         # Another colour
@@ -205,7 +205,8 @@ class CommentTest implements YamlTest {
             node("b", "two").set("eee").comment("also me")
         }
 
-        final def expected = normalize("""{
+        final def expected = normalize("""\
+            {
             # I'm first
             a: Hello,
             b: {one: World,
@@ -223,7 +224,7 @@ class CommentTest implements YamlTest {
             appendListNode().set("yellow").comment("What? a THIRD colour???")
         }
 
-        final def expected = normalize("""
+        final def expected = normalize("""\
             [
             # A colour
             red,

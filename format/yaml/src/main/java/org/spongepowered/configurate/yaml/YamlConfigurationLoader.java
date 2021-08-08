@@ -28,8 +28,8 @@ import org.spongepowered.configurate.loader.CommentHandlers;
 import org.spongepowered.configurate.loader.ParsingException;
 import org.spongepowered.configurate.util.UnmodifiableCollections;
 import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.events.DocumentStartEvent;
 import org.yaml.snakeyaml.reader.StreamReader;
-import org.yaml.snakeyaml.resolver.Resolver;
 
 import java.io.BufferedReader;
 import java.io.Writer;
@@ -39,8 +39,67 @@ import java.util.Date;
 import java.util.Set;
 
 /**
- * A loader for YAML-formatted configurations, using the SnakeYAML library for
- * parsing and generation.
+ * A loader for YAML 1.1 configurations.
+ *
+ * <h1>The YAML Format</h1>
+ *
+ * <p>YAML is an extremely flexible format for data serialization, designed to
+ * be easy for humans to work with.</p>
+ *
+ * <pre>{@code
+ * document:
+ *   hello: world!
+ *   this: [is, a list]
+ * name: abcd
+ * dependencies:
+ * - {org: org.spongepowered, name: configurate-yaml, version: 4.2.0}
+ * - {org: org.spongepowered, name: noise, version: 2.0.0}
+ * }</pre>
+ *
+ * <h1>Usage</h1>
+ *
+ * <p><strong>CAUTION:</strong>Comment support (added in 4.2.0) is currently
+ * classified as <em>experimental</em>. This means it will not be enabled by
+ * default, and must be enabled specifically on the builder, or by using the
+ * system property {@code configurate.yaml.commentsEnabled} to enable comments
+ * for loaders that do not make the choice themselves. In future versions once
+ * comment handling has stabilized, this will switch to become an opt-out for
+ * comment handling.</p>
+ *
+ * <p>This loader can be configured like any other, by adjusting properties
+ * on the {@link Builder}. While almost every property is optional, an
+ * understanding of several is crucial:</p>
+ *
+ * <ul>
+ *     <li><strong>Node Style:</strong> YAML has three modes for styling maps
+ *     and sequences: block, flow, and auto. Flow is a more json-like style,
+ *     while block is the whitespace-based style that is more specifically
+ *     associated with the YAML format. The default for Configurate is
+ *     <em>auto</em>, represented as a {@code null} {@link NodeStyle}, but users
+ *     may wish to change to {@link NodeStyle#BLOCK}.</li>
+ *     <li><strong>Accepted types:</strong> The only accepted types handled by
+ *     the YAML loader are those registered with a {@link TagRepository}. This
+ *     will override any types set in a {@link ConfigurationOptions}.</li>
+ * </ul>
+ *
+ * <h1>Custom Tags</h1>
+ *
+ * <h1>Limitations</h1>
+ *
+ * <p>This loader bridges the YAML object model and representation lifecycle
+ * with Configurate's own model. Because these models are rather different,
+ * there are a few areas where the interactions produce less than
+ * ideal results.</p>
+ *
+ * <ul>
+ *     <li>Custom tags: primarily for scalars, use object mapper for the others
+ *     (the object mapper *can* read/write the explicit tag for nodes
+ *     where useful).</li>
+ *     <li>Alias nodes and merge keys: flattened on load, not yet supported by
+ *     the Configurate object model</li>
+ *     <li>keys: limited, tag and representation information is lost when using
+ *     complex keys (since keys are not preserved as a node)</li>
+ * </ul>
  *
  * @since 4.0.0
  */
@@ -50,9 +109,9 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
      * The identifier for a YAML anchor that can be used to refer to the node
      * this hint is set on.
      *
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final RepresentationHint<String> ANCHOR_ID = RepresentationHint.of("configurate:anchor-id", String.class);
+    public static final RepresentationHint<String> ANCHOR_ID = RepresentationHint.of("configurate:yaml/anchor-id", String.class);
 
     /**
      * The YAML scalar style this node should attempt to use.
@@ -60,27 +119,27 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
      * <p>If the chosen scalar style would produce syntactically invalid YAML, a
      * valid one will replace it.</p>
      *
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final RepresentationHint<ScalarStyle> SCALAR_STYLE = RepresentationHint.of("configurate:scalar-style", ScalarStyle.class);
+    public static final RepresentationHint<ScalarStyle> SCALAR_STYLE = RepresentationHint.of("configurate:yaml/scalar-style", ScalarStyle.class);
 
     /**
      * The YAML node style to use for collection nodes. A {@code null} value
      * will instruct the emitter to fall back to the
      * {@link Builder#nodeStyle()} setting.
      *
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final RepresentationHint<NodeStyle> NODE_STYLE = RepresentationHint.of("configurate:node-style", NodeStyle.class);
+    public static final RepresentationHint<NodeStyle> NODE_STYLE = RepresentationHint.of("configurate:yaml/node-style", NodeStyle.class);
 
     /**
      * The explicitly specified tag for a node.
      *
      * <p>This can override default type conversion for a YAML document.</p>
      *
-     * @since 4.1.0
+     * @since 4.2.0
      */
-    public static final RepresentationHint<Tag> TAG = RepresentationHint.of("configurate:tag", Tag.class);
+    public static final RepresentationHint<Tag> TAG = RepresentationHint.of("configurate:yaml/tag", Tag.class);
 
     /**
      * Whether comments will be enabled by default.
@@ -151,19 +210,19 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
          *
          * <dl><dt>Flow</dt>
          * <dd>the compact, json-like representation.<br>
-         * Example: <code>
+         * Example: {@code
          *     {value: [list, of, elements], another: value}
-         * </code></dd>
+         * }</dd>
          *
          * <dt>Block</dt>
          * <dd>expanded, traditional YAML<br>
-         * Example: <code>
+         * Example: {@code
          *     value:
          *     - list
          *     - of
          *     - elements
          *     another: value
-         * </code></dd>
+         * }</dd>
          * </dl>
          *
          * <p>A {@code null} value will tell the loader to pick a value
@@ -234,23 +293,35 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
         super(builder, new CommentHandler[] {CommentHandlers.HASH});
         final DumperOptions opts = builder.options;
         opts.setDefaultFlowStyle(NodeStyle.asSnakeYaml(builder.nodeStyle()));
+        opts.setProcessComments(builder.commentsEnabled());
         this.defaultNodeStyle = builder.nodeStyle();
         this.enableComments = builder.commentsEnabled();
         this.options = opts;
-        this.visitor = new YamlVisitor(new Resolver(), this.options, this.enableComments, Yaml11Tags.REPOSITORY);
+        this.visitor = new YamlVisitor(this.enableComments, Yaml11Tags.REPOSITORY);
     }
 
     @Override
     protected void loadInternal(final CommentedConfigurationNode node, final BufferedReader reader) throws ParsingException {
         // Match the superclass implementation, except we substitute our own scanner implementation
-        final YamlParser parser = new YamlParser(new StreamReader(reader), Yaml11Tags.REPOSITORY);
+        final YamlParserComposer parser = new YamlParserComposer(new StreamReader(reader), Yaml11Tags.REPOSITORY, this.enableComments);
         parser.singleDocumentStream(node);
     }
 
     @Override
     protected void saveInternal(final ConfigurationNode node, final Writer writer) throws ConfigurateException {
         final YamlVisitor.State state = new YamlVisitor.State(this.options, writer, this.defaultNodeStyle);
+        // Initialize
+        state.start = node;
+        state.emit(YamlVisitor.STREAM_START);
+        state.emit(new DocumentStartEvent(null, null, this.options.isExplicitStart(),
+            this.options.getVersion(), this.options.getTags()));
+
+        // Write out the node
         node.visit(this.visitor, state);
+
+        // Finish up
+        state.emit(YamlVisitor.DOCUMENT_END);
+        state.emit(YamlVisitor.STREAM_END);
     }
 
     @Override

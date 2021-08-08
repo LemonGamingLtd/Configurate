@@ -16,7 +16,9 @@
  */
 package org.spongepowered.configurate.yaml;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.configurate.BasicConfigurationNode;
 import org.spongepowered.configurate.CommentedConfigurationNodeIntermediary;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -27,7 +29,6 @@ import org.yaml.snakeyaml.emitter.Emitter;
 import org.yaml.snakeyaml.error.YAMLException;
 import org.yaml.snakeyaml.events.CommentEvent;
 import org.yaml.snakeyaml.events.DocumentEndEvent;
-import org.yaml.snakeyaml.events.DocumentStartEvent;
 import org.yaml.snakeyaml.events.Event;
 import org.yaml.snakeyaml.events.ImplicitTuple;
 import org.yaml.snakeyaml.events.MappingEndEvent;
@@ -37,9 +38,6 @@ import org.yaml.snakeyaml.events.SequenceEndEvent;
 import org.yaml.snakeyaml.events.SequenceStartEvent;
 import org.yaml.snakeyaml.events.StreamEndEvent;
 import org.yaml.snakeyaml.events.StreamStartEvent;
-import org.yaml.snakeyaml.nodes.NodeId;
-import org.yaml.snakeyaml.nodes.Tag;
-import org.yaml.snakeyaml.resolver.Resolver;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -49,20 +47,16 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
 
     private static final Pattern COMMENT_SPLIT = Pattern.compile("\r?\n");
     private static final CommentEvent COMMENT_BLANK_LINE = new CommentEvent(CommentType.BLOCK, "", null, null);
-    private static final StreamStartEvent STREAM_START = new StreamStartEvent(null, null);
-    private static final StreamEndEvent STREAM_END = new StreamEndEvent(null, null);
-    private static final DocumentEndEvent DOCUMENT_END = new DocumentEndEvent(null, null, false);
+    static final StreamStartEvent STREAM_START = new StreamStartEvent(null, null);
+    static final StreamEndEvent STREAM_END = new StreamEndEvent(null, null);
+    static final DocumentEndEvent DOCUMENT_END = new DocumentEndEvent(null, null, false);
     private static final SequenceEndEvent SEQUENCE_END = new SequenceEndEvent(null, null);
     private static final MappingEndEvent MAPPING_END = new MappingEndEvent(null, null);
 
-    private final Resolver resolver;
-    private final DumperOptions dumper;
     private final boolean enableComments;
     private final TagRepository tags;
 
-    YamlVisitor(final Resolver resolver, final DumperOptions dumper, final boolean enableComments, final TagRepository tags) {
-        this.resolver = resolver;
-        this.dumper = dumper;
+    YamlVisitor(final boolean enableComments, final TagRepository tags) {
         this.enableComments = enableComments;
         this.tags = tags;
     }
@@ -73,17 +67,14 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     }
 
     @Override
-    public void beginVisit(final ConfigurationNode node, final State state) throws ConfigurateException {
-        state.start = node;
-        state.emit(STREAM_START);
-        state.emit(new DocumentStartEvent(null, null, this.dumper.isExplicitStart(),
-                this.dumper.getVersion(), this.dumper.getTags()));
+    public void beginVisit(final ConfigurationNode node, final State state) {
+        state.mapKeyHolder = BasicConfigurationNode.root(node.options());
     }
 
     @Override
     public void enterNode(final ConfigurationNode node, final State state) throws ConfigurateException {
-        if (node instanceof CommentedConfigurationNodeIntermediary<?> && this.enableComments) {
-            final @Nullable String comment = ((CommentedConfigurationNodeIntermediary<?>) node).comment();
+        if (node instanceof CommentedConfigurationNodeIntermediary<@NonNull ?> && this.enableComments) {
+            final @Nullable String comment = ((CommentedConfigurationNodeIntermediary<@NonNull ?>) node).comment();
             if (comment != null) {
                 for (final String line : COMMENT_SPLIT.split(comment)) {
                     if (line.isEmpty()) {
@@ -99,24 +90,19 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
             }
         }
 
-        if (node != state.start && node.key() != null && node.parent().isMap()) { // emit key
-            final String value = String.valueOf(node.key());
-            final Tag implicit = this.resolver.resolve(NodeId.scalar, value, true);
-            final Tag explicit = this.resolver.resolve(NodeId.scalar, value, true);
-            final ImplicitTuple implicity = new ImplicitTuple(true, true);
-            // final TagRepository.AnalyzedTag analysis = this.tags.analyze(node); // TODO: Handle tags properly
-            state.emit(new ScalarEvent(null, implicit.getValue(), implicity, value, null, null,
-                    DumperOptions.ScalarStyle.PLAIN));
+        if (node != state.start && node.key() != null /* implies node.parent() != null */ && node.parent().isMap()) { // emit key
+            state.mapKeyHolder.raw(node.key());
+            state.mapKeyHolder.visit(this, state);
         }
     }
 
     @Override
     public void enterMappingNode(final ConfigurationNode node, final State state) throws ConfigurateException {
-        final Tag implicit = this.resolver.resolve(NodeId.mapping, null, true);
+        final TagRepository.AnalyzedTag analysis = this.tags.analyze(node);
         state.emit(new MappingStartEvent(
             anchor(node),
-            implicit.toString(),
-            true,
+            analysis.actual().tagUri().toString(),
+            analysis.implicit(),
             null,
             null,
             NodeStyle.asSnakeYaml(determineStyle(node, state))
@@ -125,19 +111,38 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
 
     @Override
     public void enterListNode(final ConfigurationNode node, final State state) throws ConfigurateException {
-        final Tag implicit = this.resolver.resolve(NodeId.sequence, null, true);
-        state.emit(new SequenceStartEvent(anchor(node), implicit.getValue(), true,
-                null, null, NodeStyle.asSnakeYaml(determineStyle(node, state))));
+        final TagRepository.AnalyzedTag analysis = this.tags.analyze(node);
+        state.emit(new SequenceStartEvent(
+            anchor(node),
+            analysis.actual().tagUri().toString(),
+            analysis.implicit(),
+            null,
+            null,
+            NodeStyle.asSnakeYaml(determineStyle(node, state))
+        ));
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void enterScalarNode(final ConfigurationNode node, final State state) throws ConfigurateException {
-        final String value = String.valueOf(node.getString());
-        final Tag implicit = this.resolver.resolve(NodeId.scalar, value, true);
-        final Tag explicit = this.resolver.resolve(NodeId.scalar, value, true);
-        final ImplicitTuple implicity = new ImplicitTuple(true, true);
-        state.emit(new ScalarEvent(anchor(node), implicit.getValue(), implicity, value, null, null,
-                ScalarStyle.asSnakeYaml(node.hint(YamlConfigurationLoader.SCALAR_STYLE))));
+        // determine
+        final TagRepository.AnalyzedTag analysis = this.tags.analyze(node);
+        final ImplicitTuple implicity = new ImplicitTuple(analysis.implicit(), analysis.resolved().equals(this.tags.stringTag()));
+        final Tag actual = analysis.actual();
+        if (!(actual instanceof Tag.Scalar<?>)) {
+            throw new ConfigurateException(node, "Tag '" + actual.tagUri() + "' is required to be a scalar tag, but was actually a " + actual.getClass());
+        }
+
+        state.emit(new ScalarEvent(
+            anchor(node),
+            actual.tagUri().toString(),
+            implicity,
+            ((Tag.Scalar<Object>) actual).toString(node.rawScalar()),
+            null,
+            null,
+            // todo: support configuring default scalar style
+            ScalarStyle.asSnakeYaml(node.hint(YamlConfigurationLoader.SCALAR_STYLE), implicity, null)
+        ));
     }
 
     // TODO: emit alias events for enterReferenceNode
@@ -153,9 +158,7 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     }
 
     @Override
-    public Void endVisit(final State state) throws ConfigurateException {
-        state.emit(DOCUMENT_END);
-        state.emit(STREAM_END);
+    public Void endVisit(final State state) {
         return null;
     }
 
@@ -175,6 +178,7 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
         private final Emitter emit;
         @Nullable ConfigurationNode start;
         final @Nullable NodeStyle defaultStyle;
+        ConfigurationNode mapKeyHolder;
 
         State(final DumperOptions options, final Writer writer, final @Nullable NodeStyle defaultStyle) {
             this.emit = new Emitter(writer, options);
