@@ -35,8 +35,10 @@ import org.yaml.snakeyaml.events.CollectionStartEvent;
 import org.yaml.snakeyaml.events.CommentEvent;
 import org.yaml.snakeyaml.events.DocumentStartEvent;
 import org.yaml.snakeyaml.events.Event;
+import org.yaml.snakeyaml.events.MappingStartEvent;
 import org.yaml.snakeyaml.events.NodeEvent;
 import org.yaml.snakeyaml.events.ScalarEvent;
+import org.yaml.snakeyaml.events.SequenceStartEvent;
 import org.yaml.snakeyaml.parser.ParserImpl;
 import org.yaml.snakeyaml.reader.StreamReader;
 import org.yaml.snakeyaml.scanner.ScannerImpl;
@@ -64,6 +66,7 @@ final class YamlParserComposer extends ParserImpl {
 
     private @Nullable StringBuilder commentCollector;
     private final boolean processComments;
+    private final boolean stripLeadingCommentWhitespace = true;
     final Map<String, ConfigurationNode> aliases = new HashMap<>();
     final TagRepository tags;
     final Map<String, String> declaredTags = new HashMap<>();
@@ -86,16 +89,17 @@ final class YamlParserComposer extends ParserImpl {
     }
 
     public void document(final ConfigurationNode node) throws ParsingException {
+        if (this.processComments && node instanceof CommentedConfigurationNodeIntermediary<@NonNull ?>) {
+            // Only collect comments if we can handle them in the first place
+            this.scanner().setEmitComments(true);
+        }
+
         if (peekEvent().is(Event.ID.StreamEnd)) {
             return;
         }
 
         Frame active = this.pushFrame(DocumentStart.INSTANCE);
         active.node = node;
-        if (this.processComments && node instanceof CommentedConfigurationNodeIntermediary<@NonNull ?>) {
-            // Only collect comments if we can handle them in the first place
-            this.scanner().setEmitComments(true);
-        }
         try {
             // parser loop
             while (this.framePointer >= 0) {
@@ -262,12 +266,9 @@ final class YamlParserComposer extends ParserImpl {
 
     // comments
 
-    void consumeComments(final ConfigurationNode node, final boolean collectFirst) {
+    void applyComments(final ConfigurationNode node) {
         if (!(node instanceof CommentedConfigurationNodeIntermediary<@NonNull?>)) {
             return; // no comments are even collected
-        }
-        if (collectFirst) {
-            this.skipComments();
         }
 
         if (this.commentCollector != null && this.commentCollector.length() > 0) {
@@ -275,10 +276,10 @@ final class YamlParserComposer extends ParserImpl {
             ((CommentedConfigurationNodeIntermediary<?>) node).comment(collector.toString());
             collector.delete(0, collector.length());
         }
-        this.skipComments();
+        this.collectComments();
     }
 
-    void skipComments() {
+    void collectComments() {
         if (!this.processComments || !this.scanner().isEmitComments()) {
             return;
         }
@@ -293,7 +294,7 @@ final class YamlParserComposer extends ParserImpl {
                 if (commentCollector.length() > 0) {
                     commentCollector.append(AbstractConfigurationLoader.CONFIGURATE_LINE_SEPARATOR);
                 }
-                if (event.getValue().startsWith(" ")) {
+                if (this.stripLeadingCommentWhitespace && event.getValue().startsWith(" ")) {
                     commentCollector.append(event.getValue(), 1, event.getValue().length());
                 } else {
                     commentCollector.append(event.getValue());
@@ -375,12 +376,17 @@ final class YamlParserComposer extends ParserImpl {
 
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
+            self.collectComments();
             final DocumentStartEvent ds = self.requireEvent(Event.ID.DocumentStart, DocumentStartEvent.class);
             if (ds.getTags() != null) {
                 self.declaredTags.putAll(ds.getTags());
             }
             self.swapState(DocumentEnd.INSTANCE); // state to use after Value is complete
-            return self.pushFrame(Value.INSTANCE);
+            if (self.peekEvent().is(Event.ID.DocumentEnd)) {
+                return head;
+            } else {
+                return self.pushFrame(Value.INSTANCE);
+            }
         }
     }
 
@@ -419,10 +425,8 @@ final class YamlParserComposer extends ParserImpl {
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
             // comments
-            if (!head.hasFlag(Frame.SUPPRESS_COMMENTS)) {
-                self.consumeComments(head.node, false);
-            } else {
-                self.skipComments();
+            if (head.hasFlag(Frame.SUPPRESS_COMMENTS)) {
+                self.collectComments();
             }
             final Event peeked = self.peekEvent();
             // extract event metadata
@@ -463,6 +467,7 @@ final class YamlParserComposer extends ParserImpl {
 
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
+            self.applyComments(head.node);
             // read scalar
             final ScalarEvent scalar = self.requireEvent(Event.ID.Scalar, ScalarEvent.class);
             head.node.hint(YamlConfigurationLoader.SCALAR_STYLE, ScalarStyle.fromSnakeYaml(scalar.getScalarStyle()));
@@ -504,7 +509,10 @@ final class YamlParserComposer extends ParserImpl {
 
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
-            self.requireEvent(Event.ID.MappingStart);
+            final MappingStartEvent event = self.requireEvent(Event.ID.MappingStart, MappingStartEvent.class);
+            if (event.isFlow() || self.peekEvent().is(Event.ID.Comment)) {
+                self.applyComments(head.node);
+            }
             head.node.raw(Collections.emptyMap());
             return self.swapState(MappingKeyOrEnd.INSTANCE);
         }
@@ -519,6 +527,7 @@ final class YamlParserComposer extends ParserImpl {
 
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) {
+            self.collectComments();
             if (self.peekEvent().is(Event.ID.MappingEnd)) {
                 self.getEvent();
                 return null;
@@ -544,7 +553,7 @@ final class YamlParserComposer extends ParserImpl {
 
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
-            self.skipComments();
+
             // get value from next state, somehow?
             // pop destination node
             // set as 'next target'
@@ -564,6 +573,7 @@ final class YamlParserComposer extends ParserImpl {
                 throw makeError(self.scanner.peekToken().getStartMark(), "Duplicate key '" + child.key() + "' encountered!", null);
             }
             head.node = child;
+            self.applyComments(head.node);
             return self.swapState(Value.INSTANCE);
         }
 
@@ -578,7 +588,10 @@ final class YamlParserComposer extends ParserImpl {
 
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
-            self.requireEvent(Event.ID.SequenceStart);
+            final SequenceStartEvent event = self.requireEvent(Event.ID.SequenceStart, SequenceStartEvent.class);
+            if (event.isFlow() || self.peekEvent().is(Event.ID.Comment)) {
+                self.applyComments(head.node);
+            }
             head.node.raw(Collections.emptyList());
             return self.swapState(SequenceEntryOrEnd.INSTANCE);
         }
@@ -594,7 +607,7 @@ final class YamlParserComposer extends ParserImpl {
 
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) {
-            self.skipComments();
+            self.collectComments();
             if (self.peekEvent().is(Event.ID.SequenceEnd)) {
                 self.getEvent();
                 return null;
@@ -602,6 +615,7 @@ final class YamlParserComposer extends ParserImpl {
                 // push destination node as 'next target'
                 final Frame ret = self.pushFrame(Value.INSTANCE);
                 ret.node = self.peekFrame().node.appendListNode();
+                self.applyComments(ret.node);
                 return ret;
             }
         }

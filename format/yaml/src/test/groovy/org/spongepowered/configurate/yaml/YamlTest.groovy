@@ -17,11 +17,8 @@
 package org.spongepowered.configurate.yaml
 
 import static org.junit.jupiter.api.Assertions.assertNotNull
-import static org.junit.jupiter.api.Assertions.fail
 
 import org.spongepowered.configurate.CommentedConfigurationNode
-import org.spongepowered.configurate.ConfigurateException
-import org.yaml.snakeyaml.events.Event
 import org.yaml.snakeyaml.parser.ParserImpl
 import org.yaml.snakeyaml.reader.StreamReader
 import org.yaml.snakeyaml.scanner.ScannerImpl
@@ -38,17 +35,11 @@ interface YamlTest {
         def dumper = new ParserImpl(scanner)
         do {
             System.out.println(dumper.getEvent())
-        } while (!dumper.checkEvent(Event.ID.StreamEnd))
+        } while (dumper.peekEvent())
 
         final YamlParserComposer parser = new YamlParserComposer(new StreamReader(input), Yaml11Tags.REPOSITORY, true)
         final CommentedConfigurationNode result = CommentedConfigurationNode.root()
-        try {
-            parser.singleDocumentStream(result)
-        } catch (final ConfigurateException ex) {
-            throw ex
-        } catch (final IOException ex) {
-            fail(ex)
-        }
+        parser.singleDocumentStream(result)
         return result
     }
 
@@ -60,19 +51,14 @@ interface YamlTest {
         def dumper = new ParserImpl(scanner)
         do {
             System.out.println(dumper.getEvent())
-        } while (!dumper.peekEvent().is(Event.ID.StreamEnd))
+        } while (dumper.peekEvent())
 
         assertNotNull(url, "Expected resource is missing")
-        try {
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), StandardCharsets.UTF_8))) {
-                final YamlParserComposer parser = new YamlParserComposer(new StreamReader(reader), Yaml11Tags.REPOSITORY, true)
-                final CommentedConfigurationNode result = CommentedConfigurationNode.root()
-                parser.singleDocumentStream(result)
-                return result
-            }
-        } catch (final IOException ex) {
-            fail(ex)
-            throw new AssertionError()
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), StandardCharsets.UTF_8))) {
+            final YamlParserComposer parser = new YamlParserComposer(new StreamReader(reader), Yaml11Tags.REPOSITORY, true)
+            final CommentedConfigurationNode result = CommentedConfigurationNode.root()
+            parser.singleDocumentStream(result)
+            return result
         }
     }
 
@@ -81,17 +67,10 @@ interface YamlTest {
     }
 
     default String dump(final CommentedConfigurationNode input, final NodeStyle preferredStyle) {
-        final StringWriter writer = new StringWriter()
-        try {
-            YamlConfigurationLoader.builder()
-                    .sink { new BufferedWriter(writer) }
-                    .nodeStyle(preferredStyle)
-                    .commentsEnabled(true)
-                    .build().save(input)
-        } catch (IOException e) {
-            fail(e)
-        }
-        return writer.toString()
+        return YamlConfigurationLoader.builder()
+            .nodeStyle(preferredStyle)
+            .commentsEnabled(true)
+            .buildAndSaveString(input)
     }
 
     default String normalize(final String input) {

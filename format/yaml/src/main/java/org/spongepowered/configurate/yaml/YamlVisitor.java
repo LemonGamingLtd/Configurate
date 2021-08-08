@@ -46,6 +46,7 @@ import java.util.regex.Pattern;
 final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void, ConfigurateException> {
 
     private static final Pattern COMMENT_SPLIT = Pattern.compile("\r?\n");
+    private static final CommentEvent WHITESPACE = new CommentEvent(CommentType.BLANK_LINE, YamlConfigurationLoader.CONFIGURATE_LINE_SEPARATOR, null, null);
     private static final CommentEvent COMMENT_BLANK_LINE = new CommentEvent(CommentType.BLOCK, "", null, null);
     static final StreamStartEvent STREAM_START = new StreamStartEvent(null, null);
     static final StreamEndEvent STREAM_END = new StreamEndEvent(null, null);
@@ -76,11 +77,15 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
         if (node instanceof CommentedConfigurationNodeIntermediary<@NonNull ?> && this.enableComments) {
             final @Nullable String comment = ((CommentedConfigurationNodeIntermediary<@NonNull ?>) node).comment();
             if (comment != null) {
+                if (node != state.start && !node.parent().isList()) {
+                    // todo: try and avoid emitting a blank line when we're the first element of a mapping?
+                    state.emit(WHITESPACE);
+                }
                 for (final String line : COMMENT_SPLIT.split(comment)) {
                     if (line.isEmpty()) {
                         state.emit(COMMENT_BLANK_LINE);
                     } else {
-                        if (!Character.isWhitespace(line.codePointAt(0))) {
+                        if (line.codePointAt(0) != '#') { // allow lines that are only the comment character, for box drawing
                             state.emit(new CommentEvent(CommentType.BLOCK, " " + line, null, null));
                         } else {
                             state.emit(new CommentEvent(CommentType.BLOCK, line, null, null));
@@ -163,7 +168,7 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     }
 
     private @Nullable NodeStyle determineStyle(final ConfigurationNode node, final State state) {
-        // some basic rules:
+        // todo: some basic rules:
         // - if a node has any children with comments, convert it to block style
         // - when the default style is `AUTO` and `flowLevel` == 0,
         final @Nullable NodeStyle style = node.hint(YamlConfigurationLoader.NODE_STYLE);
@@ -171,7 +176,7 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     }
 
     private @Nullable String anchor(final ConfigurationNode node) {
-        return node.ownHint(YamlConfigurationLoader.ANCHOR_ID);
+        return node.hint(YamlConfigurationLoader.ANCHOR_ID);
     }
 
     static class State {

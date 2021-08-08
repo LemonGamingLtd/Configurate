@@ -16,6 +16,7 @@
  */
 package org.spongepowered.configurate.yaml
 
+import static org.assertj.core.api.Assertions.assertThat
 import static org.junit.jupiter.api.Assertions.assertEquals
 import static org.junit.jupiter.api.Assertions.assertFalse
 import static org.junit.jupiter.api.Assertions.assertNull
@@ -39,13 +40,39 @@ class CommentTest implements YamlTest {
     @Test
     void testLoadBlockMappingComment() {
         final CommentedConfigurationNode node = parseString normalize("""\
+            # outer
             test:
                 # meow
                 cat: purrs
             """)
 
-        assertEquals("purrs", node.node("test", "cat").raw())
-        assertEquals("meow", node.node("test", "cat").comment())
+        assertThat(node.node('test'))
+                .extracting { it.comment() }
+                .isEqualTo("outer")
+
+        assertThat(node.node('test', 'cat')).with {
+            extracting { it.raw() }
+                    .isEqualTo("purrs")
+            extracting { it.comment() }
+                .isEqualTo("meow")
+        }
+    }
+
+    @Test
+    void testLoadBlockSequenceComment() {
+        final CommentedConfigurationNode node = parseString normalize("""\
+            # first
+            - one
+            # second
+            - two
+            """)
+
+        assertThat(node.node(0))
+                .extracting { it.comment() }
+                .isEqualTo("first")
+        assertThat(node.node(1))
+                .extracting { it.comment() }
+                .isEqualTo("second")
     }
 
     @Test
@@ -67,6 +94,7 @@ class CommentTest implements YamlTest {
     @Test
     void testLoadScalarCommentsInBlockMapping() {
         final CommentedConfigurationNode test = parseString """\
+            # on mapping key
             blah:
             # beginning sequence
             - # first on map entry
@@ -77,9 +105,9 @@ class CommentTest implements YamlTest {
 
         final CommentedConfigurationNode child = test.node("blah", 0)
         assertFalse(child.virtual())
-        assertEquals("beginning sequence", child.comment())
-        assertEquals("first on map entry", child.node("test").comment())
-        assertEquals("on second mapping", child.node("test2").comment())
+        assertEquals("on mapping key\nbeginning sequence", test.node('blah').comment())
+        assertEquals("first on map entry", child.node('blah', 0, 'test').comment())
+        assertEquals("on second mapping", test.node('blah', 1, "test2").comment())
     }
 
     // flow collections are a bit trickier

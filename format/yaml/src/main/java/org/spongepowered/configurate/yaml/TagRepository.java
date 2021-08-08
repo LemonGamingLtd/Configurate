@@ -113,7 +113,7 @@ final class TagRepository {
      * @since 4.2.0
      */
     AnalyzedTag analyze(final ConfigurationNode node) throws ConfigurateException {
-        final @Nullable Tag explicit = node.hint(YamlConfigurationLoader.TAG);
+        final @Nullable Tag explicit = node.ownHint(YamlConfigurationLoader.TAG);
         final @Nullable Tag calculated;
         boolean isUnambiguous;
         if (node.isMap()) {

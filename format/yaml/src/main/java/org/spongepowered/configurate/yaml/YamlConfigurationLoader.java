@@ -102,6 +102,9 @@ import java.util.Set;
  * </ul>
  *
  * @since 4.0.0
+ * @see <a href="https://yaml.org/spec/1.1/">YAML 1.1 Spec</a>
+ * @see <a href="https://yaml.org/spec/1.2/spec.html">YAML 1.2 Spec</a>
+ * @see <a href="https://github.com/yaml/yaml-spec/tree/main/rfc">YAML Spec RFCs</a>
  */
 public final class YamlConfigurationLoader extends AbstractConfigurationLoader<CommentedConfigurationNode> {
 
@@ -111,7 +114,11 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
      *
      * @since 4.2.0
      */
-    public static final RepresentationHint<String> ANCHOR_ID = RepresentationHint.of("configurate:yaml/anchor-id", String.class);
+    public static final RepresentationHint<String> ANCHOR_ID = RepresentationHint.<String>builder()
+        .identifier("configurate:yaml/anchor-id")
+        .valueType(String.class)
+        .inheritable(false)
+        .build();
 
     /**
      * The YAML scalar style this node should attempt to use.
@@ -139,7 +146,11 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
      *
      * @since 4.2.0
      */
-    public static final RepresentationHint<Tag> TAG = RepresentationHint.of("configurate:yaml/tag", Tag.class);
+    public static final RepresentationHint<Tag> TAG = RepresentationHint.<Tag>builder()
+        .identifier("configurate:yaml/tag")
+        .valueType(Tag.class)
+        .inheritable(false)
+        .build();
 
     /**
      * Whether comments will be enabled by default.
