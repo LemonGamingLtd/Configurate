@@ -186,24 +186,40 @@ class YamlParserComposerTest implements YamlTest {
     @Test
     void testMergeKey() {
         def result = parseString """\
-        src: &ref [a, b, c]
-        dest: *ref
+        src: &ref 
+           old: merged
+        dest: 
+          >>: *ref
+          new: added
         """.stripIndent(true)
 
         def src = result.node('src')
         def dest = result.node('dest')
 
         // Value transferred
-        assertThat(dest.getList(String))
-                .containsExactly('a', 'b', 'c')
+        assertThat(dest.childrenMap().keySet())
+                .containsExactly('old', 'new')
+    }
 
-        // Anchor information preserved
-        // TODO: this may be different once proper reference nodes are implemented
-        assertThat(src.hint(YamlConfigurationLoader.ANCHOR_ID))
-                .isEqualTo('ref')
+    @Test
+    void testYIsBooleanForSomeReason() {
+        def result = parseString """\
+        asVal: y
+        y: asKey
+        """
 
-        assertThat(dest.hint(YamlConfigurationLoader.ANCHOR_ID))
-                .isNull()
+        assertThat(result.node('asVal')).with {
+            extracting { it.virtual() }
+                .is(false)
+            extracting { it.raw() }
+                .isEqualTo(true)
+        }
+        assertThat(result.node(true)).with {
+            extracting { it.virtual() }
+                    .is(false)
+            extracting { it.raw() }
+                    .isEqualTo('asKey')
+        }
     }
 
 }

@@ -54,7 +54,12 @@ final class TagRepository {
         this.stringTag = builder.stringTag;
         this.sequenceTag = builder.sequenceTag;
         this.mappingTag = builder.mappingTag;
-        this.tags = UnmodifiableCollections.copyOf(builder.otherTags);
+        final List<Tag> allTags = new ArrayList<>(builder.otherTags);
+        allTags.add(this.stringTag);
+        allTags.add(this.sequenceTag);
+        allTags.add(this.mappingTag);
+        allTags.add(this.unresolvedTag);
+        this.tags = UnmodifiableCollections.copyOf(allTags);
         this.byErasedType = UnmodifiableCollections.copyOf(builder.byErasedType);
         this.byName = UnmodifiableCollections.copyOf(builder.byName);
     }
@@ -258,6 +263,10 @@ final class TagRepository {
             this.sequenceTag = existing.sequenceTag;
             this.mappingTag = existing.mappingTag;
             this.otherTags.addAll(existing.tags);
+            this.otherTags.remove(this.stringTag);
+            this.otherTags.remove(this.sequenceTag);
+            this.otherTags.remove(this.mappingTag);
+            this.otherTags.remove(this.unresolvedTag);
             this.byErasedType.putAll(existing.byErasedType);
             this.byName.putAll(existing.byName);
         }
@@ -301,6 +310,7 @@ final class TagRepository {
                 throw new IllegalArgumentException("Tag " + tag
                     + " was already registered as one of the mapping, sequence, string, or unresolved tags!");
             }
+            this.otherTags.add(tag);
             return this.addTag0(tag);
         }
 
@@ -309,7 +319,6 @@ final class TagRepository {
                 this.byErasedType.put(clazz, tag);
             }
             this.byName.put(tag.tagUri(), tag);
-            this.otherTags.add(tag);
             return this;
         }
 
