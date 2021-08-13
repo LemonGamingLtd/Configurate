@@ -6,7 +6,7 @@ Subject: [PATCH] Make prettyFlow modifiable during emission
 This allows controlling prettyFlow on a per-node basis.
 
 diff --git a/src/main/java/org/yaml/snakeyaml/emitter/Emitter.java b/src/main/java/org/yaml/snakeyaml/emitter/Emitter.java
-index 9b5268298518d3a5cf55a8763b7f5f537b511720..91afda131fbae8cd42dbfd6439e8bbfae0e6dd6d 100644
+index cad49156be009cd37eeb0bb0bd70248908ef1630..504d04746ec0952f65d93e2b2137a78c03815f29 100644
 --- a/src/main/java/org/yaml/snakeyaml/emitter/Emitter.java
 +++ b/src/main/java/org/yaml/snakeyaml/emitter/Emitter.java
 @@ -151,7 +151,7 @@ public final class Emitter implements Emitable {
