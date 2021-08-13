@@ -283,10 +283,44 @@ final class YamlParserComposer extends ParserImpl {
 
         if (this.commentCollector != null && this.commentCollector.length() > 0) {
             final StringBuilder collector = this.commentCollector;
-            ((CommentedConfigurationNodeIntermediary<?>) node).comment(collector.toString());
+            final CommentedConfigurationNodeIntermediary<@NonNull ?> commented = (CommentedConfigurationNodeIntermediary<@NonNull ?>) node;
+            if (commented.comment() != null) {
+                collector.insert(0, commented.comment());
+                collector.insert(commented.comment().length(), '\n');
+            }
+            commented.comment(collector.toString());
             collector.delete(0, collector.length());
         }
+    }
+
+    @Nullable String popComment() {
+        final String ret;
+        if (this.commentCollector != null && this.commentCollector.length() > 0) {
+            final StringBuilder collector = this.commentCollector;
+            ret = collector.toString();
+            collector.delete(0, collector.length());
+        } else {
+            ret = null;
+        }
         this.collectComments();
+        return ret;
+    }
+
+    void applyComment(final @Nullable String comment, final ConfigurationNode node) {
+        if (comment == null || !(node instanceof CommentedConfigurationNodeIntermediary<@NonNull ?>)) {
+            return;
+        }
+        final CommentedConfigurationNodeIntermediary<@NonNull ?> commented = (CommentedConfigurationNodeIntermediary<@NonNull ?>) node;
+        if (commented.comment() != null) {
+            commented.comment(
+                commented.comment()
+                    + '\n'
+                    + comment
+            );
+        } else {
+            commented.comment(comment);
+        }
+
     }
 
     void collectComments() {
@@ -382,7 +416,7 @@ final class YamlParserComposer extends ParserImpl {
         }
 
         @Override
-        public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
+        public Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
             self.collectComments();
             final DocumentStartEvent ds = self.requireEvent(Event.ID.DocumentStart, DocumentStartEvent.class);
             if (ds.getTags() != null) {
@@ -430,11 +464,7 @@ final class YamlParserComposer extends ParserImpl {
         }
 
         @Override
-        public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
-            // comments
-            if (head.hasFlag(Frame.SUPPRESS_COMMENTS)) {
-                self.collectComments();
-            }
+        public Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
             final Event peeked = self.peekEvent();
             // extract event metadata
             if (peeked instanceof NodeEvent && !(peeked instanceof AliasEvent)) {
@@ -475,6 +505,7 @@ final class YamlParserComposer extends ParserImpl {
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
             self.applyComments(head.node);
+            self.collectComments();
             // read scalar
             final ScalarEvent scalar = self.requireEvent(Event.ID.Scalar, ScalarEvent.class);
             head.node.hint(YamlConfigurationLoader.SCALAR_STYLE, ScalarStyle.fromSnakeYaml(scalar.getScalarStyle()));
@@ -564,7 +595,7 @@ final class YamlParserComposer extends ParserImpl {
         }
 
         @Override
-        public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
+        public Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
 
             // get value from next state, somehow?
             // pop destination node
@@ -586,6 +617,7 @@ final class YamlParserComposer extends ParserImpl {
             }
             head.node = child;
             self.applyComments(head.node);
+            self.collectComments();
             return self.swapState(Value.INSTANCE);
         }
 
@@ -599,7 +631,7 @@ final class YamlParserComposer extends ParserImpl {
         }
 
         @Override
-        public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
+        public Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
             final SequenceStartEvent event = self.requireEvent(Event.ID.SequenceStart, SequenceStartEvent.class);
             if (event.isFlow() || self.peekEvent().is(Event.ID.Comment)) {
                 self.applyComments(head.node);
@@ -619,7 +651,7 @@ final class YamlParserComposer extends ParserImpl {
 
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) {
-            self.collectComments();
+            final @Nullable String comments = self.popComment();
             if (self.peekEvent().is(Event.ID.SequenceEnd)) {
                 self.getEvent();
                 return null;
@@ -627,7 +659,7 @@ final class YamlParserComposer extends ParserImpl {
                 // push destination node as 'next target'
                 final Frame ret = self.pushFrame(Value.INSTANCE);
                 ret.node = self.peekFrame().node.appendListNode();
-                self.applyComments(ret.node);
+                self.applyComment(comments, ret.node);
                 return ret;
             }
         }

@@ -51,11 +51,11 @@ class YamlVisitorTest implements YamlTest {
             }
         }
 
-        final def expected = normalize("""
+        final def expected = normalize("""\
         - Hello
         - World
-        -   one: aaa
-            two: bbb
+        - one: aaa
+          two: bbb
         """)
         assertEquals(expected, this.dump(node, NodeStyle.BLOCK))
     }
@@ -68,7 +68,7 @@ class YamlVisitorTest implements YamlTest {
             node("fun").set(true)
         }
 
-        final def expected = normalize("""
+        final def expected = normalize("""\
         meow: purr
         eight: 1234
         fun: true

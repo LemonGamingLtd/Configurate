@@ -75,14 +75,7 @@ interface YamlTest {
     }
 
     default String normalize(final String input) {
-        def stripped = input.stripIndent(true)
-        if (stripped.startsWith("\r\n")) {
-            return stripped.substring(2)
-        } else if (stripped.startsWith("\n")) {
-            return stripped.substring(1)
-        } else {
-            return stripped
-        }
+        return input.stripIndent(true)
     }
 
 }

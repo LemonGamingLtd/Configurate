@@ -106,7 +106,7 @@ class CommentTest implements YamlTest {
         final CommentedConfigurationNode child = test.node("blah", 0)
         assertFalse(child.virtual())
         assertEquals("on mapping key\nbeginning sequence", test.node('blah').comment())
-        assertEquals("first on map entry", child.node('blah', 0, 'test').comment())
+        assertEquals("first on map entry", test.node('blah', 0, 'test').comment())
         assertEquals("on second mapping", test.node('blah', 1, "test2").comment())
     }
 
@@ -173,14 +173,15 @@ class CommentTest implements YamlTest {
             node("b", "two").set("eee").comment("also me")
         }
 
-        assertEquals(
+        assertLinesEqual(
             normalize("""\
                 # I'm first
                 a: Hello
                 b:
-                    one: World
-                    # also me
-                    two: eee
+                  one: World
+                  
+                  # also me
+                  two: eee
                 """),
             dump(node, NodeStyle.BLOCK)
         )
@@ -191,19 +192,19 @@ class CommentTest implements YamlTest {
         final def node = CommentedConfigurationNode.root {
             appendListNode().set("Hello")
             appendListNode().set("World")
-            appendListNode().act {
-                it.node("one").set("aaa")
-                it.node("two").set("bbb")
+            appendListNode().with {
+                node("one").set("aaa")
+                node("two").set("bbb")
             }
         }
 
         final def expected = normalize("""\
         - Hello
         - World
-        -   one: aaa
-            two: bbb
+        - one: aaa
+          two: bbb
         """)
-        assertEquals(expected, this.dump(node, NodeStyle.BLOCK))
+        assertLinesEqual(expected, this.dump(node, NodeStyle.BLOCK))
     }
 
     @Test
@@ -222,7 +223,7 @@ class CommentTest implements YamlTest {
         # What? a THIRD colour???
         - yellow
         """)
-        assertEquals(expected, this.dump(node, NodeStyle.BLOCK))
+        assertLinesEqual(expected, this.dump(node, NodeStyle.BLOCK))
     }
 
     @Test
@@ -235,13 +236,39 @@ class CommentTest implements YamlTest {
 
         final def expected = normalize("""\
             {
-            # I'm first
-            a: Hello,
-            b: {one: World,
+              # I'm first
+              a: Hello,
+              b: {
+                one: World,
+                
                 # also me
-                two: eee } }
+                two: eee
+              }
+            }
             """)
-        assertEquals(expected, dump(node, NodeStyle.FLOW))
+
+        assertLinesEqual(expected, dump(node, NodeStyle.FLOW))
+    }
+
+    @Test
+    void testPrettyFlowForcedWhenEmittingCommentsEvenNotFirst() {
+        final CommentedConfigurationNode node = CommentedConfigurationNode.root {
+            node('one').set "two"
+            node("three").with {
+                set "four"
+                comment "hello"
+            }
+        }
+
+        final def expected = normalize("""\
+            {one: two,
+            
+              # hello
+              three: four
+            }
+        """)
+
+        assertLinesEqual(expected, dump(node, NodeStyle.FLOW))
     }
 
     @Test
@@ -254,14 +281,20 @@ class CommentTest implements YamlTest {
 
         final def expected = normalize("""\
             [
-            # A colour
-            red,
-            # Another colour
-            orange,
-            # What? a THIRD colour???
-            yellow
-            ]""")
-        assertEquals(expected, this.dump(node, NodeStyle.FLOW))
+              # A colour
+              red,
+              # Another colour
+              orange,
+              # What? a THIRD colour???
+              yellow
+            ]
+            """)
+        assertLinesEqual(expected, this.dump(node, NodeStyle.FLOW))
+    }
+
+    private static def assertLinesEqual(String expected, String actual) {
+        assertThat(actual.split("\r?\n", -1).collect { it.isAllWhitespace() ? "" : it})
+            .containsAll(expected.split("\r?\n", -1).collect { it.isAllWhitespace() ? "" : it})
     }
 
 }

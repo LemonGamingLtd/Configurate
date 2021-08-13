@@ -19,6 +19,7 @@ package org.spongepowered.configurate.yaml
 import static org.assertj.core.api.Assertions.assertThat
 import static org.assertj.core.api.Assertions.assertThatThrownBy
 
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.loader.ParsingException
@@ -184,6 +185,7 @@ class YamlParserComposerTest implements YamlTest {
     // Test that implicit tags are resolved properly
 
     @Test
+    @Disabled("not yet implemented")
     void testMergeKey() {
         def result = parseString """\
         src: &ref 
