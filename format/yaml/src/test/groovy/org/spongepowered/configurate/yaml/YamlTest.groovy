@@ -69,6 +69,7 @@ interface YamlTest {
     default String dump(final CommentedConfigurationNode input, final NodeStyle preferredStyle) {
         return YamlConfigurationLoader.builder()
             .nodeStyle(preferredStyle)
+            .indent(2)
             .commentsEnabled(true)
             .buildAndSaveString(input)
     }

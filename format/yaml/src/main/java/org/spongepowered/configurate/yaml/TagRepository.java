@@ -131,7 +131,7 @@ final class TagRepository {
             calculated = this.byType(void.class);
             isUnambiguous = true;
         } else {
-            final Object rawScalar = node.rawScalar();
+            final @Nullable Object rawScalar = node.rawScalar();
             calculated = this.byType(rawScalar.getClass());
             isUnambiguous = true;
             if (calculated != null && calculated instanceof Tag.Scalar<?>) {
