@@ -59,11 +59,13 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     private static final SequenceEndEvent SEQUENCE_END = new SequenceEndEvent(null, null);
     private static final MappingEndEvent MAPPING_END = new MappingEndEvent(null, null);
 
+    private final boolean shouldPadComments;
     private final boolean enableComments;
     private final TagRepository tags;
 
-    YamlVisitor(final boolean enableComments, final TagRepository tags) {
+    YamlVisitor(final boolean enableComments, final boolean shouldPadComments, final TagRepository tags) {
         this.enableComments = enableComments;
+        this.shouldPadComments = shouldPadComments;
         this.tags = tags;
     }
 
@@ -82,7 +84,7 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
         if (node instanceof CommentedConfigurationNodeIntermediary<@NonNull ?> && this.enableComments) {
             final @Nullable String comment = ((CommentedConfigurationNodeIntermediary<@NonNull ?>) node).comment();
             if (comment != null) {
-                if (node != state.start && !node.parent().isList()) {
+                if (this.shouldPadComments && node != state.start && !node.parent().isList()) {
                     // todo: try and avoid emitting a blank line when we're the first element of a mapping?
                     state.emit(WHITESPACE);
                 }

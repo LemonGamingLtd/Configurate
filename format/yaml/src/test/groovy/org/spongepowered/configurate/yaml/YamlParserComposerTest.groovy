@@ -182,6 +182,21 @@ class YamlParserComposerTest implements YamlTest {
                 .isNull()
     }
 
+    @Test
+    void testCommentsOnNullValuePreserved() {
+        def result = parseString """\
+        # the greetings
+        hello:
+        # - abc
+        # - def
+        """
+
+        println dump(result)
+
+        assertThat(result.node('hello').comment())
+            .isEqualTo("the greetings")
+    }
+
     // Test that implicit tags are resolved properly
 
     @Test

@@ -309,7 +309,7 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
         this.defaultNodeStyle = builder.nodeStyle();
         this.enableComments = builder.commentsEnabled();
         this.options = opts;
-        this.visitor = new YamlVisitor(this.enableComments, Yaml11Tags.REPOSITORY);
+        this.visitor = new YamlVisitor(this.enableComments, true, Yaml11Tags.REPOSITORY);
     }
 
     @Override

@@ -32,32 +32,34 @@ interface YamlTest {
         def scanner = new ScannerImpl(new StreamReader(input))
         scanner.emitComments = true
         scanner.acceptTabs = true
-        def dumper = new ParserImpl(scanner)
+        def parser = new ParserImpl(scanner)
         do {
-            System.out.println(dumper.getEvent())
-        } while (dumper.peekEvent())
+            println parser.getEvent()
+        } while (parser.peekEvent())
 
-        final YamlParserComposer parser = new YamlParserComposer(new StreamReader(input), Yaml11Tags.REPOSITORY, true)
+        final YamlParserComposer loader = new YamlParserComposer(new StreamReader(input), Yaml11Tags.REPOSITORY, true)
         final CommentedConfigurationNode result = CommentedConfigurationNode.root()
-        parser.singleDocumentStream(result)
+        loader.singleDocumentStream(result)
         return result
     }
 
     default CommentedConfigurationNode parseResource(final URL url) {
         // Print events
-        def scanner = new ScannerImpl(new StreamReader(url.readLines("UTF-8").join("\n")))
-        scanner.emitComments = true
-        scanner.acceptTabs = true
-        def dumper = new ParserImpl(scanner)
-        do {
-            System.out.println(dumper.getEvent())
-        } while (dumper.peekEvent())
+        url.openStream().withReader('UTF-8') {reader ->
+            def scanner = new ScannerImpl(new StreamReader(reader))
+            scanner.emitComments = true
+            scanner.acceptTabs = true
+            def parser = new ParserImpl(scanner)
+            do {
+                println parser.getEvent()
+            } while (parser.peekEvent())
+        }
 
         assertNotNull(url, "Expected resource is missing")
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), StandardCharsets.UTF_8))) {
-            final YamlParserComposer parser = new YamlParserComposer(new StreamReader(reader), Yaml11Tags.REPOSITORY, true)
+            final YamlParserComposer loader = new YamlParserComposer(new StreamReader(reader), Yaml11Tags.REPOSITORY, true)
             final CommentedConfigurationNode result = CommentedConfigurationNode.root()
-            parser.singleDocumentStream(result)
+            loader.singleDocumentStream(result)
             return result
         }
     }

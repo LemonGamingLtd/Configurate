@@ -294,6 +294,10 @@ final class YamlParserComposer extends ParserImpl {
     }
 
     @Nullable String popComment() {
+        if (this.peekFrame().hasFlag(Frame.SUPPRESS_COMMENTS)) {
+            return null;
+        }
+
         final String ret;
         if (this.commentCollector != null && this.commentCollector.length() > 0) {
             final StringBuilder collector = this.commentCollector;
@@ -363,6 +367,9 @@ final class YamlParserComposer extends ParserImpl {
                 try {
                     final N node = factory.createNode();
                     document(node);
+                    if (!hasNext()) {
+                        requireEvent(Event.ID.StreamEnd);
+                    }
                     return node;
                 } catch (final ConfigurateException e) {
                     throw new RuntimeException(e); // TODO
@@ -504,14 +511,14 @@ final class YamlParserComposer extends ParserImpl {
 
         @Override
         public @Nullable Frame accept(final Frame head, final YamlParserComposer self) throws ParsingException {
-            self.applyComments(head.node);
-            self.collectComments();
+            final @Nullable String comments = self.popComment();
             // read scalar
             final ScalarEvent scalar = self.requireEvent(Event.ID.Scalar, ScalarEvent.class);
             head.node.hint(YamlConfigurationLoader.SCALAR_STYLE, ScalarStyle.fromSnakeYaml(scalar.getScalarStyle()));
             // resolve tag
             @Nullable Tag tag;
             if (scalar.getTag() != null) {
+                // todo: handle ! tag
                 final URI tagUri = self.tagUri(scalar.getTag(), scalar.getStartMark(), head);
                 tag = self.tags.named(tagUri);
                 if (tag == null) {
@@ -535,6 +542,7 @@ final class YamlParserComposer extends ParserImpl {
                 }
                 head.node.raw(((Tag.Scalar<?>) tag).fromString(scalar.getValue()));
             }
+            self.applyComment(comments, head.node);
             head.node.hint(YamlConfigurationLoader.TAG, tag);
             head.resolvedTag = tag;
             // pop state
