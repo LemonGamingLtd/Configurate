@@ -1,25 +1,13 @@
 import javax.xml.parsers.DocumentBuilderFactory
 
-buildscript {
-    repositories {
-        maven("https://repo.spongepowered.org/repository/maven-public/")
-    }
-    dependencies {
-        classpath("org.cadixdev.gradle:gitpatcher") {
-            version {
-                branch = "feature/fix-gradle7"
-            }
-        }
-    }
+plugins {
+    id("net.minecraftforge.gitpatcher") version "0.10.+"
 }
 
-apply(plugin="org.cadixdev.gitpatcher")
-
-extensions.configure(org.cadixdev.gradle.gitpatcher.PatchExtension::class) {
+patches {
     submodule = "snakeyaml-upstream"
     target = file("snakeyaml")
     patches = file("snakeyaml-patches")
-    recommendedFormatPatchArgs()
 }
 
 subprojects {
