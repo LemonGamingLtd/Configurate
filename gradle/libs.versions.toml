@@ -9,7 +9,7 @@ pmd = "6.45.0"
 
 [libraries]
 # Shared
-assertJ = "org.assertj:assertj-core:3.+"
+assertJ = "org.assertj:assertj-core:3.21.0"
 autoValue = { module = "com.google.auto.value:auto-value", version.ref = "autoValue" }
 autoValue-annotations = { module = "com.google.auto.value:auto-value-annotations", version.ref = "autoValue" }
 errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
