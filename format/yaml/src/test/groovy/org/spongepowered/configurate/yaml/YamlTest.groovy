@@ -23,19 +23,19 @@ import org.yaml.snakeyaml.parser.ParserImpl
 import org.yaml.snakeyaml.reader.StreamReader
 import org.yaml.snakeyaml.scanner.ScannerImpl
 
-import java.nio.charset.StandardCharsets
+trait YamlTest {
 
-interface YamlTest {
-
-    default CommentedConfigurationNode parseString(final String input) {
+    CommentedConfigurationNode parseString(final String input) {
         // Print events
         def scanner = new ScannerImpl(new StreamReader(input))
-        scanner.emitComments = true
+        scanner.parseComments = true
         scanner.acceptTabs = true
         def parser = new ParserImpl(scanner)
-        do {
+
+        while (true) {
             println parser.getEvent()
-        } while (parser.peekEvent())
+            if (!parser.peekEvent()) break
+        }
 
         final YamlParserComposer loader = new YamlParserComposer(new StreamReader(input), Yaml11Tags.REPOSITORY, true)
         final CommentedConfigurationNode result = CommentedConfigurationNode.root()
@@ -43,20 +43,21 @@ interface YamlTest {
         return result
     }
 
-    default CommentedConfigurationNode parseResource(final URL url) {
+    CommentedConfigurationNode parseResource(final URL url) {
         // Print events
         url.openStream().withReader('UTF-8') {reader ->
             def scanner = new ScannerImpl(new StreamReader(reader))
-            scanner.emitComments = true
+            scanner.parseComments = true
             scanner.acceptTabs = true
             def parser = new ParserImpl(scanner)
-            do {
+            while (true) {
                 println parser.getEvent()
-            } while (parser.peekEvent())
+                if (!parser.peekEvent()) break
+            }
         }
 
         assertNotNull(url, "Expected resource is missing")
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), StandardCharsets.UTF_8))) {
+        url.openStream().withReader('UTF-8') { reader ->
             final YamlParserComposer loader = new YamlParserComposer(new StreamReader(reader), Yaml11Tags.REPOSITORY, true)
             final CommentedConfigurationNode result = CommentedConfigurationNode.root()
             loader.singleDocumentStream(result)
@@ -64,11 +65,11 @@ interface YamlTest {
         }
     }
 
-    default String dump(final CommentedConfigurationNode input) {
+    String dump(final CommentedConfigurationNode input) {
         return dump(input, null)
     }
 
-    default String dump(final CommentedConfigurationNode input, final NodeStyle preferredStyle) {
+    String dump(final CommentedConfigurationNode input, final NodeStyle preferredStyle) {
         return YamlConfigurationLoader.builder()
             .nodeStyle(preferredStyle)
             .indent(2)
@@ -76,7 +77,7 @@ interface YamlTest {
             .buildAndSaveString(input)
     }
 
-    default String normalize(final String input) {
+    String normalize(final String input) {
         return input.stripIndent(true)
     }
 

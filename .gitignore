@@ -23,9 +23,6 @@ build-logic/*/bin/
 # gitpatcher local data
 /vendor/snakeyaml
 
-# gitpatcher local data
-/vendor/snakeyaml/
-
 # IntelliJ project data
 .idea
 *.iml

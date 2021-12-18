@@ -71,10 +71,10 @@ project(":snakeyaml") {
     val applyPatches = rootProject.tasks.named("applyPatches")
     tasks.withType(JavaCompile::class) {
         options.release.set(7)
-        dependsOn(applyPatches)
+        // dependsOn(applyPatches)
     }
     tasks.withType(ProcessResources::class) {
-        dependsOn(applyPatches)
+        // dependsOn(applyPatches)
     }
 
     tasks.named("test", Test::class) {
