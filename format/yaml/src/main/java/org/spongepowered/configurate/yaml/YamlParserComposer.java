@@ -83,18 +83,18 @@ final class YamlParserComposer extends ParserImpl {
     // "api" //
 
     public void singleDocumentStream(final ConfigurationNode node) throws ParsingException {
-        requireEvent(Event.ID.StreamStart);
-        document(node);
-        requireEvent(Event.ID.StreamEnd);
+        this.requireEvent(Event.ID.StreamStart);
+        this.document(node);
+        this.requireEvent(Event.ID.StreamEnd);
     }
 
     public void document(final ConfigurationNode node) throws ParsingException {
         if (this.processComments && node instanceof CommentedConfigurationNodeIntermediary<@NonNull ?>) {
             // Only collect comments if we can handle them in the first place
-            this.scanner().setEmitComments(true);
+            this.scanner().setParseComments(true);
         }
 
-        if (peekEvent().is(Event.ID.StreamEnd)) {
+        if (this.peekEvent().is(Event.ID.StreamEnd)) {
             return;
         }
 
@@ -125,7 +125,7 @@ final class YamlParserComposer extends ParserImpl {
             ex.initPath(active.node::path);
             throw ex;
         } finally {
-            this.scanner().setEmitComments(false);
+            this.scanner().setParseComments(false);
             this.aliases.clear();
             this.declaredTags.clear();
         }
@@ -138,7 +138,7 @@ final class YamlParserComposer extends ParserImpl {
     // events //
 
     void requireEvent(final Event.ID type) throws ParsingException {
-        final Event next = peekEvent();
+        final Event next = this.peekEvent();
         if (!next.is(type)) {
             throw makeError(next.getStartMark(), "Expected next event of type" + type + " but was " + next.getEventId(), null);
         }
@@ -147,7 +147,7 @@ final class YamlParserComposer extends ParserImpl {
 
     @SuppressWarnings("unchecked")
     <T extends Event> T requireEvent(final Event.ID type, final Class<T> clazz) throws ParsingException {
-        final Event next = peekEvent();
+        final Event next = this.peekEvent();
         if (!next.is(type)) {
             throw makeError(next.getStartMark(), "Expected next event of type " + type + " but was " + next.getEventId(), null);
         }
@@ -210,7 +210,7 @@ final class YamlParserComposer extends ParserImpl {
     }
 
     Frame peekFrame() {
-        return peekFrame(0);
+        return this.peekFrame(0);
     }
 
     Frame peekFrame(final int depth) {
@@ -328,12 +328,12 @@ final class YamlParserComposer extends ParserImpl {
     }
 
     void collectComments() {
-        if (!this.processComments || !this.scanner().isEmitComments()) {
+        if (!this.processComments || !this.scanner().isParseComments()) {
             return;
         }
 
-        while (peekEvent().is(Event.ID.Comment)) {
-            final CommentEvent event = (CommentEvent) getEvent();
+        while (this.peekEvent().is(Event.ID.Comment)) {
+            final CommentEvent event = (CommentEvent) this.getEvent();
             if (event.getCommentType() != CommentType.BLANK_LINE) {
                 @Nullable StringBuilder commentCollector = this.commentCollector;
                 if (commentCollector == null) {
@@ -352,23 +352,23 @@ final class YamlParserComposer extends ParserImpl {
     }
 
     public <N extends ConfigurationNode> Stream<N> stream(final ConfigurationNodeFactory<N> factory) throws ParsingException {
-        requireEvent(Event.ID.StreamStart);
+        this.requireEvent(Event.ID.StreamStart);
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<N>() {
             @Override
             public boolean hasNext() {
-                return !checkEvent(Event.ID.StreamEnd);
+                return !YamlParserComposer.this.checkEvent(Event.ID.StreamEnd);
             }
 
             @Override
             public N next() {
-                if (!hasNext()) {
+                if (!this.hasNext()) {
                     throw new IndexOutOfBoundsException();
                 }
                 try {
                     final N node = factory.createNode();
-                    document(node);
-                    if (!hasNext()) {
-                        requireEvent(Event.ID.StreamEnd);
+                    YamlParserComposer.this.document(node);
+                    if (!this.hasNext()) {
+                        YamlParserComposer.this.requireEvent(Event.ID.StreamEnd);
                     }
                     return node;
                 } catch (final ConfigurateException e) {
