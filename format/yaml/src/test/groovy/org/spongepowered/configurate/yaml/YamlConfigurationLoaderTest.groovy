@@ -55,16 +55,16 @@ class YamlConfigurationLoaderTest {
 
     @Test
     void testReadWithTabs() throws ConfigurateException {
-        final def expected = CommentedConfigurationNode.root(n -> {
-            n.node("document").act(d -> {
+        final def expected = CommentedConfigurationNode.root { n ->
+            n.node("document").act{ d ->
                 d.node("we").raw("support tabs")
                 d.node("and").raw("literal tabs\tin strings")
-                d.node("with").act(w -> {
+                d.node("with").act{ w ->
                     w.appendListNode().raw("more levels")
                     w.appendListNode().raw("of indentation")
-                })
-            })
-        })
+                }
+            }
+        }
 
         final URL url = getClass().getResource("tab-example.yml")
         final ConfigurationLoader<CommentedConfigurationNode> loader = YamlConfigurationLoader.builder()
@@ -76,17 +76,17 @@ class YamlConfigurationLoaderTest {
     @Test
     void testWriteBasicFile(final @TempDir Path tempDir) throws ConfigurateException, IOException {
         final Path target = tempDir.resolve("write-basic.yml")
-        final ConfigurationNode node = BasicConfigurationNode.root(n -> {
+        final ConfigurationNode node = BasicConfigurationNode.root { n ->
             n.node("mapping", "first").set("hello")
             n.node("mapping", "second").set("world")
 
-            n.node("list").act(c -> {
+            n.node("list").act { c ->
                 c.appendListNode().set(1)
                 c.appendListNode().set(2)
                 c.appendListNode().set(3)
                 c.appendListNode().set(4)
-            })
-        })
+            }
+        }
 
         final YamlConfigurationLoader loader = YamlConfigurationLoader.builder()
                 .path(target)
