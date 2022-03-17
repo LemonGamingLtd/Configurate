@@ -112,12 +112,12 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     public void enterMappingNode(final ConfigurationNode node, final State state) throws ConfigurateException {
         final TagRepository.AnalyzedTag analysis = this.tags.analyze(node);
         state.emit(new MappingStartEvent(
-            anchor(node),
+            this.anchor(node),
             analysis.actual().tagUri().toString(),
             analysis.implicit(),
             null,
             null,
-            NodeStyle.asSnakeYaml(determineStyle(node, state))
+            NodeStyle.asSnakeYaml(this.determineStyle(node, state))
         ));
     }
 
@@ -125,12 +125,12 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
     public void enterListNode(final ConfigurationNode node, final State state) throws ConfigurateException {
         final TagRepository.AnalyzedTag analysis = this.tags.analyze(node);
         state.emit(new SequenceStartEvent(
-            anchor(node),
+            this.anchor(node),
             analysis.actual().tagUri().toString(),
             analysis.implicit(),
             null,
             null,
-            NodeStyle.asSnakeYaml(determineStyle(node, state))
+            NodeStyle.asSnakeYaml(this.determineStyle(node, state))
         ));
     }
 
@@ -149,14 +149,18 @@ final class YamlVisitor implements ConfigurationVisitor<YamlVisitor.State, Void,
         }
 
         state.emit(new ScalarEvent(
-            anchor(node),
+            this.anchor(node),
             actual.tagUri().toString(),
             implicity,
             ((Tag.Scalar<Object>) actual).toString(node.rawScalar()),
             null,
             null,
             // todo: support configuring default scalar style
-            ScalarStyle.asSnakeYaml(node.hint(YamlConfigurationLoader.SCALAR_STYLE), implicity, null)
+            ScalarStyle.asSnakeYaml(
+                node.hint(YamlConfigurationLoader.SCALAR_STYLE),
+                implicity,
+                ((Tag.Scalar<?>) actual).preferredScalarStyle()
+            )
         ));
     }
 

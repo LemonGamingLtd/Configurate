@@ -117,6 +117,7 @@ final class TagRepository {
      * @return a calculated tag
      * @since 4.2.0
      */
+    @SuppressWarnings("rawtypes")
     AnalyzedTag analyze(final ConfigurationNode node) throws ConfigurateException {
         final @Nullable Tag explicit = node.ownHint(YamlConfigurationLoader.TAG);
         final @Nullable Tag calculated;

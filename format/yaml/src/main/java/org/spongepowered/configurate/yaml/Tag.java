@@ -48,10 +48,11 @@ class Tag {
     abstract static class Scalar<V> extends Tag {
 
         private final @Nullable Pattern pattern;
+        private final @Nullable ScalarStyle preferredScalarStyle;
 
         // for unregistered tags on scalars
         static Scalar<String> ofUnknown(final URI tagUri) {
-            return new Scalar<String>(tagUri, Collections.emptySet(), null) {
+            return new Scalar<String>(tagUri, Collections.emptySet(), null, null) {
                 @Override
                 public String fromString(final String input) {
                     return input;
@@ -65,8 +66,13 @@ class Tag {
         }
 
         Scalar(final URI tagUri, final Set<Class<? extends V>> supportedTypes, final @Nullable Pattern pattern) {
+            this(tagUri, supportedTypes, pattern, null);
+        }
+
+        Scalar(final URI tagUri, final Set<Class<? extends V>> supportedTypes, final @Nullable Pattern pattern, final @Nullable ScalarStyle preferredScalarStyle) {
             super(tagUri, supportedTypes);
             this.pattern = pattern;
+            this.preferredScalarStyle = preferredScalarStyle;
         }
 
         /**
@@ -76,9 +82,20 @@ class Tag {
          * implicit tag.</p>
          *
          * @return the detection pattern
+         * @since 4.2.0
          */
         public final @Nullable Pattern pattern() {
             return this.pattern;
+        }
+
+        /**
+         * Get the preferred scalar style to use for this type, when none is specifically used.
+         *
+         * @return the preferred scalar style
+         * @since 4.2.0
+         */
+        public final @Nullable ScalarStyle preferredScalarStyle() {
+            return this.preferredScalarStyle;
         }
 
         public abstract V fromString(String input) throws ParsingException;

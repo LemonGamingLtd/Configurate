@@ -97,7 +97,7 @@ import java.util.Set;
  *     where useful).</li>
  *     <li>Alias nodes and merge keys: flattened on load, not yet supported by
  *     the Configurate object model</li>
- *     <li>keys: limited, tag and representation information is lost when using
+ *     <li>Keys: limited, tag and representation information is lost when using
  *     complex keys (since keys are not preserved as a node)</li>
  * </ul>
  *
@@ -191,8 +191,8 @@ public final class YamlConfigurationLoader extends AbstractConfigurationLoader<C
         private boolean enableComments = COMMENTS_DEFAULT;
 
         Builder() {
-            indent(4);
-            defaultOptions(o -> o.nativeTypes(NATIVE_TYPES));
+            this.indent(4);
+            this.defaultOptions(o -> o.nativeTypes(NATIVE_TYPES));
         }
 
         /**
