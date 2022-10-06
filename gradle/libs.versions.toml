@@ -5,7 +5,7 @@ checkstyle="10.3.3"
 errorprone="2.15.0"
 indra = "2.2.0"
 junit="5.9.0"
-ktlint="0.46.0"
+ktlint="0.47.1"
 pmd = "6.49.0"
 
 [libraries]
