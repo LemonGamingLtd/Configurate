@@ -97,3 +97,11 @@ publishing {
         }
     }
 }
+
+shadowJar {
+    archiveName = "$baseName-$version.$extension"
+}
+
+artifacts {
+    archives shadowJar
+}
