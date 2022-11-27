@@ -72,22 +72,8 @@ if (project.hasProperty("spongeKeyStore")) {
         action()
     }
 
-    forRelevantOutgoings {
-        artifact(tasks.shadowJar)
-    }
-
     tasks.shadowJar {
         archiveName = "$baseName-$version.$extension"
-        archiveClassifier = ""
-    }
-    tasks.jar {
-        archiveClassifier = "thin"
-    }
-
-    afterEvaluate {
-        forRelevantOutgoings {
-            artifacts.removeIf { it.classifier.equals("thin") }
-        }
     }
 
     artifacts {
