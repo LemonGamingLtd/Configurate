@@ -89,19 +89,3 @@ if (project.hasProperty("spongeKeyStore")) {
         }
     }
 }
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            artifact(tasks.shadowJar)
-        }
-    }
-}
-
-shadowJar {
-    archiveName = "$baseName-$version.$extension"
-}
-
-artifacts {
-    archives shadowJar
-}
