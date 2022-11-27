@@ -103,6 +103,7 @@ dependencies {
     testImplementation(libs.assertj.core)
     testImplementation(libs.junit.api)
     testRuntimeOnly(libs.junit.engine)
+    testImplementation(libs.assertJ)
 }
 
 configurations {

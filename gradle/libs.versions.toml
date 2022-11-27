@@ -3,6 +3,7 @@ assertj="3.23.1"
 autoValue="1.10"
 checkstyle="10.4"
 errorprone="2.16"
+groovy = "3.0.9"
 indra = "3.0.1"
 junit="5.9.1"
 ktlint="0.46.0"
@@ -10,6 +11,7 @@ pmd = "6.50.0"
 
 [libraries]
 # Shared
+assertJ = "org.assertj:assertj-core:3.21.0"
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 autoValue = { module = "com.google.auto.value:auto-value", version.ref = "autoValue" }
 autoValue-annotations = { module = "com.google.auto.value:auto-value-annotations", version.ref = "autoValue" }
@@ -38,6 +40,13 @@ slf4j = "org.slf4j:slf4j-api:1.8.0-beta4" # Match version used in MC
 # Guice
 guice-compile = "com.google.inject:guice:4.1.0"
 guice-runtime = "com.google.inject:guice:5.0.1"
+
+# Groovy
+groovy = { module = "org.codehaus.groovy:groovy", version.ref = "groovy" }
+groovy-nio = { module = "org.codehaus.groovy:groovy-nio", version.ref = "groovy" }
+groovy-templates = { module = "org.codehaus.groovy:groovy-templates", version.ref = "groovy" }
+groovy-test = { module = "org.codehaus.groovy:groovy-test", version.ref = "groovy" }
+groovy-test-junit5 = { module = "org.codehaus.groovy:groovy-test-junit5", version.ref = "groovy" }
 
 # Formats
 gson = "com.google.code.gson:gson:2.8.0" # Fixed version, to avoid using API not present in older MC
@@ -69,6 +78,7 @@ aggregateJavadoc = "io.freefair.aggregate-javadoc-jar:6.5.1"
 detekt = "io.gitlab.arturbosch.detekt:1.21.0"
 dokka = "org.jetbrains.dokka:1.7.20"
 gitPublish = "org.ajoberstar.git-publish:3.0.1"
+ideaExt = "org.jetbrains.gradle.plugin.idea-ext:1.0.1"
 indra-common = { id = "net.kyori.indra", version.ref = "indra" }
 indra-crossdoc = { id = "net.kyori.indra.crossdoc", version.ref = "indra" }
 indra-sonatype = { id = "net.kyori.indra.publishing.sonatype", version.ref = "indra" }
