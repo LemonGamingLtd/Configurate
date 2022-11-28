@@ -81,9 +81,6 @@ allprojects {
     publishing {
         publications {
             maven(MavenPublication) {
-                groupId = 'org.company'
-                artifactId = 'sample'
-                version = "0.9-SNAPSHOT"
 
             }
         }
