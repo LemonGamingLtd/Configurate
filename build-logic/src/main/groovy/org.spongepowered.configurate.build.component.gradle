@@ -14,7 +14,6 @@ import org.gradle.external.javadoc.StandardJavadocDocletOptions
 
 plugins {
     id "org.spongepowered.configurate.build.base"
-    id "org.spongepowered.configurate.build.publishing"
     id "net.kyori.indra"
     id "net.kyori.indra.checkstyle"
     id "net.kyori.indra.crossdoc"
