@@ -77,22 +77,14 @@ gitPublish {
     }
 }
 
-allprojects {
-    publishing {
-        publications {
-            maven(MavenPublication) {
-                artifactId = project.name
-            }
-        }
-
-        repositories {
-            maven {
-                name = "GitHubPackages"
-                url = "https://maven.pkg.github.com/LemonGamingLtd/Configurate"
-                credentials {
-                    username = System.getenv("GITHUB_ACTOR")
-                    password = System.getenv("GITHUB_TOKEN")
-                }
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/LemonGamingLtd/Configurate"
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
             }
         }
     }

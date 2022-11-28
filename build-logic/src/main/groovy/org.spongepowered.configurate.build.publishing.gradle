@@ -90,19 +90,14 @@ if (project.hasProperty("spongeKeyStore")) {
 }
 
 indra {
-    github("SpongePowered", "Configurate") {
+    github("LemonGamingLtd", "Configurate") {
         publishing(true) // GH Packages
         ci(true) // GH Actions
     }
     apache2License()
 
-    if (
-        project.hasProperty("spongeSnapshotRepo") &&
-        project.hasProperty("spongeReleaseRepo")
-    ) {
-        publishSnapshotsTo("sponge", project.spongeSnapshotRepo)
-        publishReleasesTo("sponge", project.spongeReleaseRepo)
-    }
+    publishSnapshotsTo("GitHubPackages", "https://maven.pkg.github.com/LemonGamingLtd/Configurate")
+    publishSnapshotsTo("GitHubPackages", "https://maven.pkg.github.com/LemonGamingLtd/Configurate")
 
     configurePublications {
         artifactId = archiveName

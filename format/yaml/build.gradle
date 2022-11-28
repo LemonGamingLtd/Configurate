@@ -89,3 +89,12 @@ if (project.hasProperty("spongeKeyStore")) {
         }
     }
 }
+
+publishing {
+    publications {
+        shadow(MavenPublication) { publication ->
+            artifactId = "configurate-yaml"
+            project.shadow.component(publication)
+        }
+    }
+}
