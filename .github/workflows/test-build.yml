@@ -77,26 +77,6 @@ jobs:
           ./gradlew publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish to GH pages
-        if: "${{ runner.os == 'Linux' && ((env.STATUS == 'release' && github.event_name == 'release') || (env.STATUS != 'release' && github.event_name != 'release' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/3.x'))) }}"
-        uses: JamesIves/github-pages-deploy-action@v4.4.1
-        with:
-          branch: gh-pages
-          force: false
-          folder: build/gitPublish
-      - name: Publish Javadoc to Sponge index
-        if: "${{ runner.os == 'Linux' && ((env.STATUS == 'release' && github.event_name == 'release') || (env.STATUS != 'release' && github.event_name != 'release' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/3.x'))) }}"
-        uses: JamesIves/github-pages-deploy-action@v4.4.1
-        with:
-          folder: build/publish-jd
-          ssh-key: "${{ secrets.SPONGE_JD_DEPLOY_KEY }}"
-          repository-name: SpongePowered/APIJavadocs
-          branch: data
-          git-config-name: Spongie
-          git-config-email: staff@spongepowered.org
-          clean: false
-          force: false
-          commit-message: "Publishing javadoc for ${{ github.repository }} ${{ env.VERSION }}"
       - name: Publish configurate-tool as release artifact
         if: "${{ runner.os == 'Linux' && env.STATUS == 'release' && github.event_name == 'release' }}"
         uses: softprops/action-gh-release@v1
