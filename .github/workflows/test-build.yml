@@ -25,7 +25,7 @@ jobs:
     runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-latest]
+        os: [ubuntu-20.04]
     steps:
       # Setup
       - name: Check out
@@ -75,7 +75,7 @@ jobs:
         if: "${{ runner.os == 'Linux' && ((env.STATUS == 'release' && github.event_name == 'release') || (env.STATUS != 'release' && github.event_name != 'release' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/3.x' || startsWith(github.ref, 'refs/heads/release/')))) }}"
         run: |
           mkdir -p build/publish-jd/configurate
-          ./gradlew publish gitPublishCopy copyJavadoc --output build/publish-jd/configurate closeSonatypeStagingRepository
+          ./gradlew publish
         env:
           ORG_GRADLE_PROJECT_githubPackagesUsername: "${{ github.actor }}"
           ORG_GRADLE_PROJECT_githubPackagesPassword: "${{ secrets.GITHUB_TOKEN }}"
@@ -90,6 +90,7 @@ jobs:
           ORG_GRADLE_PROJECT_spongeKeyStore: "${{ secrets.CONFIGURATE_JARSIGNING_KEY }}"
           ORG_GRADLE_PROJECT_spongeKeyStoreAlias: "${{ secrets.CONFIGURATE_JARSIGNING_ALIAS }}"
           ORG_GRADLE_PROJECT_spongeKeyStorePassword: "${{ secrets.CONFIGURATE_JARSIGNING_PASSWORD }}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish to GH pages
         if: "${{ runner.os == 'Linux' && ((env.STATUS == 'release' && github.event_name == 'release') || (env.STATUS != 'release' && github.event_name != 'release' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/3.x'))) }}"
         uses: JamesIves/github-pages-deploy-action@v4.4.1

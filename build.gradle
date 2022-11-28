@@ -13,6 +13,7 @@ plugins {
     alias(libs.plugins.ideaExt)
     id 'java-base'
     id 'org.spongepowered.configurate.build.base'
+    id 'maven-publish'
 }
 
 idea.project.settings {
@@ -74,5 +75,18 @@ gitPublish {
         include(".gitattributes")
         include("**/") // include everything in directories
         exclude("/*.html")
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/LemonGamingLtd/configurate"
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
     }
 }
