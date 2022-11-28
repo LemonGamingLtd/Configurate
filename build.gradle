@@ -7,7 +7,6 @@ plugins {
     alias(libs.plugins.dokka) apply false
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.aggregateJavadoc)
-    alias(libs.plugins.indra.sonatype)
     alias(libs.plugins.indra.git)
     alias(libs.plugins.gitPublish)
     alias(libs.plugins.ideaExt)
@@ -78,14 +77,22 @@ gitPublish {
     }
 }
 
-publishing {
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = "https://maven.pkg.github.com/LemonGamingLtd/configurate"
-            credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_TOKEN")
+allprojects {
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                
+            }
+        }
+
+        repositories {
+            maven {
+                name = "GitHubPackages"
+                url = "https://maven.pkg.github.com/LemonGamingLtd"
+                credentials {
+                    username = System.getenv("GITHUB_ACTOR")
+                    password = System.getenv("GITHUB_TOKEN")
+                }
             }
         }
     }
